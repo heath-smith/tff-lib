@@ -152,7 +152,7 @@ class ThinFilmFilter:
         """
 
         # check if 'units' param is valid
-        if units != 'rad' or units != 'deg':
+        if units != 'rad' and units != 'deg':
             # raise a custom 'UnitError' if 'units' not valid
             raise UnitError(units, "Invalid Units. Valid inputs are 'rad' or 'deg'.")
 
@@ -178,7 +178,8 @@ class ThinFilmFilter:
                                 + type(arr))
 
             # validate that shapes are equal to the wv_range shape
-            if np.shape(arr) != np.shape(wv_range):
+            if (np.shape(arr) != np.shape(wv_range)
+                or np.shape(arr) != (len(layer_stack),len(wv_range))):
                 raise ValueError("ValueError: Expected arrays of shape "
                                 + str(np.shape(wv_range)) + " but received "
                                 + str(np.shape(arr)))

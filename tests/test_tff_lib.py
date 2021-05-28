@@ -145,37 +145,38 @@ class TestThinFilmFilter(unittest.TestCase):
         in moe.py module for definition of the test arrays.
         """
 
+        # update output stream
         sys.stdout.write('\nTesting admit_delta()... ')
 
-        # instance of MOE class
-        test_moe_ad = MOE(self.data_path)
-
         #---------- DEFINE TEST INPUT DATA -----------#
-
+        # get spectral info from initial_conditions in json
+        test_cond = self.input_data['initial_conditions']
+        # define expected test results
+        test_exp = self.output_data['admit_delta_expected']
+        # test wavelength range
+        test_wv_range = test_cond['wv']
+        # input layer stack
+        test_layers = test_cond['layers']
+        # incident angle theta
+        test_theta = 0.0
         # incident medium refractive index (assume incident medium is air)
-        test_i_n = np.ones(np.shape(test_moe_ad.init_conditions['wv'])).astype(complex)
-
+        test_i_n = np.ones(np.shape(test_cond['wv'])).astype(complex)
         # substrate refractive index
-        test_s_n = np.array(test_moe_ad.init_conditions['substrate']).astype(complex)
-
+        test_s_n = np.array(test_cond['substrate']).astype(complex)
         # film refractive indices
-        test_f_n = np.zeros((len(test_moe_ad.init_conditions['layers']),
-                np.shape(test_moe_ad.init_conditions['wv'])[1])).astype(complex)
+        test_f_n = np.zeros((len(test_cond['layers']),
+                np.shape(test_cond['wv'])[1])).astype(complex)
         # get measured substrate & thin film optical constant data
-        for i in range(0, len(test_moe_ad.init_conditions['materials'])):
-            if test_moe_ad.init_conditions['materials'][i] == "H":
-                test_f_n[i,:] = test_moe_ad.init_conditions['high_mat']
+        for i in range(0, len(test_cond['materials'])):
+            if test_cond['materials'][i] == "H":
+                test_f_n[i, :] = np.array(test_cond['high_mat'])
             else:
-                test_f_n[i,:] = test_moe_ad.init_conditions['low_mat']
+                test_f_n[i, :] = np.array(test_cond['low_mat'])
 
-        # incident angle 'theta' (default = 0 radians!)
-        test_theta = test_moe_ad.design_settings['incident_angle'] * (np.pi / 180)
-
-        # make call to admit_delta() method
-        test_ad_output = test_moe_ad.admit_delta(test_i_n, test_s_n, test_f_n, test_theta)
-
-        # define dictionary with expected admit_delta() results
-        ad_expected = self.expected_data['admit_delta_expected']
+        #-------- test admit_delta() with no 'units' arg ---------#
+        sys.stdout.write('\n\t*w/o units param... ')
+        test_ad_no_units = tff.admit_delta(test_wv_range, test_layers, test_theta,
+                                            test_i_n, test_s_n, test_f_n)
 
         # set decimal threshold for array comparison
         thresh = 4
@@ -183,10 +184,10 @@ class TestThinFilmFilter(unittest.TestCase):
         # assert equality in test results vs. expected results
         # use numpy testing functions for array comparison
         test_fails = 0
-        for key in ad_expected:
+        for key in test_exp:
             try:
-                nptest.assert_allclose(test_ad_output[key],
-                    np.array(ad_expected[key]).astype(complex),
+                nptest.assert_allclose(test_ad_no_units[key],
+                    np.array(test_exp[key]).astype(complex),
                     rtol=1e-14, atol=.1)
             except AssertionError as err:
                 test_fails += 1
@@ -195,7 +196,7 @@ class TestThinFilmFilter(unittest.TestCase):
         if test_fails == 0:
             # write 'PASSED' to output stream if
             # all assertions pass
-            sys.stdout.write('PASSED | rtol=1e-14, atol=.1')
+            sys.stdout.write('PASSED')
 
     def test_c_mat(self):
         """
