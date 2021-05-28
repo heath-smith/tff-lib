@@ -50,17 +50,17 @@ class ThinFilmFilter:
         """
 
         # check if 'units' param is valid
-        if units != 'rad' or units != 'deg':
+        if units != 'rad' and units != 'deg':
             # raise a custom 'UnitError' if 'units' not valid
             err_msg = "Invalid Units. Valid inputs are 'rad' or 'deg'."
             raise UnitError(units, err_msg)
 
-        elif type(units) != str:
+        if type(units) != str:
             # raise a TypeError if 'units' is not a string
             err_msg = "TypeError: 'units' parameter expects type 'str'."
             raise TypeError(err_msg)
 
-        elif units == 'deg':
+        if units == 'deg':
             # if input theta is 'deg', convert to radians
             theta = theta * (np.pi / 180)
 
