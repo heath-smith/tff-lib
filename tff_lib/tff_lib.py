@@ -10,7 +10,7 @@ import numpy as np
 # import custom exceptions classes
 from tff_lib.exceptions import UnitError
 
-class Filters:
+class ThinFilmFilter:
 
     @staticmethod
     def fresnel_bare(i_n, s_n, theta, units='rad'):
