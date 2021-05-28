@@ -15,7 +15,7 @@ class ThinFilmFilter:
     @staticmethod
     def fresnel_bare(i_n, s_n, theta, units='rad'):
         """
-        Calculates the fresnel amplitudes & intensities of the substrate.
+        (static method) Calculates the fresnel amplitudes & intensities of the substrate.
 
         Parameters
         -----------
@@ -35,26 +35,46 @@ class ThinFilmFilter:
         'rs' : s-polarized Fresnel Reflection Amplitude,\n
         'rp' : p-polarized Fresnel Reflection Amplitude }
 
-        Examples
-        --------------
-        >>> fr_bare = fresnel_bare(wv, i_n, s_n, theta)\n
-        >>> big_t_s = fr_bare[ 'Ts' ]\n
-        >>> big_r_s = fr_bare[ 'Rs' ]
-
         Raises
         -----------
-        UnitError if input units parameter is not 'rad' or 'deg'.
+        UnitError if input 'units' parameter is not 'rad' or 'deg'.\n
+        TypeError if 'units' is not a 'str' type.\n
+        TypeError if 's_n' or 'f_n' is not 'complex' or 'complex128' type
+                    or if data structure is not numpy.ndarray.
+
+        Examples
+        --------------
+        >>> fr_bare = fresnel_bare(i_n, s_n, theta, units='rad')
+        >>> big_t_s = fr_bare['Ts']
+        >>> big_r_s = fr_bare['Rs']
         """
 
         # check if 'units' param is valid
         if units != 'rad' or units != 'deg':
+            # raise a custom 'UnitError' if 'units' not valid
             err_msg = "Invalid Units. Valid inputs are 'rad' or 'deg'."
             raise UnitError(units, err_msg)
+
+        elif type(units) != str:
+            # raise a TypeError if 'units' is not a string
+            err_msg = "TypeError: 'units' parameter expects type 'str'."
+            raise TypeError(err_msg)
 
         elif units == 'deg':
             # if input theta is 'deg', convert to radians
             theta = theta * (np.pi / 180)
 
+        # validate i_n, and s_n input arrays, they should be 'complex' or 'complex128'
+        # data structure should be 'np.ndarray'
+        for arr in [i_n, s_n]:
+            if arr.dtype != 'complex128' or arr.dtype != 'complex':
+                # raise TypeError if any array is not complex
+                raise TypeError("Incorrect type: expected 'complex' type but received "
+                                 + str(arr.dtype))
+            if type(arr) != np.ndarray:
+                # raise TypeError if not a numpy ndarray
+                raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
+                                + type(arr))
 
         # Calculation of the Fresnel Amplitude Coefficients
         rs_num = (i_n * np.cos(theta) - np.sqrt(np.square(s_n)
@@ -78,38 +98,91 @@ class ThinFilmFilter:
         return {'Ts':big_t_s, 'Tp':big_t_p, 'Rs':big_r_s,
                 'Rp':big_r_p, 'rs':r_s, 'rp':r_p}
 
-    #@staticmethod
-    def admit_delta(self, i_n, s_n, f_n, theta):
+    @staticmethod
+    def admit_delta(wv_range, layer_stack, theta, i_n, s_n, f_n, units='deg'):
         """
-        (instance method) Calculates filter admittances of incident, substrate,
+        (static method) Calculates filter admittances of incident, substrate,
         and film as well as the phase (delta) upon reflection for each film.
 
         Parameters
         -------------
+        wv_range (array): wavelength values in nanometers.\n
+        layer_stack (array): thickness values of each filter layer in nanometers.\n
+        theta (float): angle of incidence of radiation\n
         i_n (array): complex refractive index of incident medium (i_n = n + i*k)\n
         s_n (array): complex refractive index of substrate (s_n = n + i*k)\n
-        f_n (array): complex refractive index of thin films (f_n = n + i*k)\n
-        theta (float): angle of incidence of radiation (in radians!)
+        f_n (array): complex refractive index of thin films (f_n = n + i*k)
+
+        optional:\n
+        units (str): units of measure for angle theta. Valid options are
+                    'rad' and 'deg'. Default value is 'deg'.
 
         Returns
         --------------
         dictionary object of transmission and reflection value arrays\n
         {key : result array}\n
-        { 'nsInc' : s-polarized admittance of the incident medium,\n
-        'npInc' : p-polarized admittance of the incident medium,\n
-        'nsSub' : s-polarized admittance of the substrate medium,\n
-        'npSub' : p-polarized admittance of the substrate medium,\n
-        'nsFilm' : s-polarized admittance of the film stack layers,\n
-        'npFilm' : p-polarized admittance of the film stack layers,\n
+        { 'ns_inc' : s-polarized admittance of the incident medium,\n
+        'np_inc' : p-polarized admittance of the incident medium,\n
+        'ns_sub' : s-polarized admittance of the substrate medium,\n
+        'np_sub' : p-polarized admittance of the substrate medium,\n
+        'ns_film' : s-polarized admittance of the film stack layers,\n
+        'np_film' : p-polarized admittance of the film stack layers,\n
         'delta' : phase upon reflection for each film }
+
+        Raises
+        ------------
+        TypeError if either i_n, s_n, or f_n is not type 'complex' or
+        'complex128'. Also raises TypeError if input arrays are not
+        'numpy.ndarray' types.\n
+        TypeError if 'units' param is not a string.\n
+        UnitError if units is not 'deg' or 'rad'.\n
+        ValueError if array shapes do not match.
+
+        Notes
+        --------------
+        Input arrays should be row-based and be equal to shape of wv_range.
+        ie: shape = (1, N)
 
         Examples
         --------------
-        admittance = admit_delta(wv, layers, i_n, s_n, f_n, theta)\n
-        ns_inc = admittance[ 'nsInc' ]\n
-        d = admittance[ 'delta' ]
+        >>> admittance = admit_delta(wv_range, layer_stack, i_n, s_n, f_n, theta, units='deg')
+        >>> ns_inc = admittance['ns_inc']
+        >>> d = admittance['delta']
 
         """
+
+        # check if 'units' param is valid
+        if units != 'rad' or units != 'deg':
+            # raise a custom 'UnitError' if 'units' not valid
+            raise UnitError(units, "Invalid Units. Valid inputs are 'rad' or 'deg'.")
+
+        elif type(units) != str:
+            # raise a TypeError if 'units' is not a string
+            raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
+                            + type(units))
+
+        elif units == 'deg':
+            # if input theta is 'deg', convert to radians
+            theta = theta * (np.pi / 180)
+
+        # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
+        # data structure should be 'np.ndarray' and all shapes should match wv_range
+        for arr in [i_n, s_n, f_n]:
+            if arr.dtype != 'complex128' or arr.dtype != 'complex':
+                # raise TypeError if any array is not complex
+                raise TypeError("Incorrect type: expected 'complex' type but received "
+                                 + str(arr.dtype))
+            if type(arr) != np.ndarray:
+                # raise TypeError if not a numpy ndarray
+                raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
+                                + type(arr))
+
+            # validate that shapes are equal to the wv_range shape
+            if np.shape(arr) != np.shape(wv_range):
+                raise ValueError("ValueError: Expected arrays of shape "
+                                + str(np.shape(wv_range)) + " but received "
+                                + str(np.shape(arr)))
+
 
         # Calculation of the complex dielectric constants from measured
         # optical constants
@@ -123,30 +196,34 @@ class ThinFilmFilter:
         ns_sub = np.sqrt(s_e - i_e * np.sin(theta)**2)
         np_sub = s_e / ns_sub
 
-        # Calculation of the admittances & phase factors for each layer of the film stack
-        ns_film = np.ones((len(self.init_conditions['layers']),
-                np.shape(self.init_conditions['wv'])[1])).astype(complex)
-        np_film = np.ones((len(self.init_conditions['layers']),
-                np.shape(self.init_conditions['wv'])[1])).astype(complex)
-        delta = np.ones((len(self.init_conditions['layers']),
-                np.shape(self.init_conditions['wv'])[1])).astype(complex)
+        # Calculation of the admittances & phase factors
+        # for each layer of the film stack
+        ns_film = np.ones((len(layer_stack),
+                np.shape(wv_range)[1])).astype(complex)
+        np_film = np.ones((len(layer_stack),
+                np.shape(wv_range)[1])).astype(complex)
+        delta = np.ones((len(layer_stack),
+                np.shape(wv_range)[1])).astype(complex)
 
         # enter loop if the substrate has thin film layers
-        if len(f_n[:,0]) >= 1:
-            for i, layer in enumerate(self.init_conditions['layers']):
-                ns_film[i, :] = np.sqrt(f_e[i, :] - i_e * np.sin(theta)**2)
+        if len(f_n[:, 0]) >= 1:
+            for i, layer in enumerate(layer_stack):
+                ns_film[i, :] = np.sqrt(f_e[i, :] -
+                                i_e * np.sin(theta)**2)
                 np_film[i, :] = f_e[i, :] / ns_film[i, :]
-                delta_num = (2 * np.pi * layer * np.sqrt(f_e[i, :] - i_e * np.sin(theta)**2))
-                delta_den = np.array(self.init_conditions['wv'])
-                delta[i, :] = delta_num / delta_den
+                delta[i, :] = ((2 * np.pi * layer
+                            * np.sqrt(f_e[i, :] - i_e
+                            * np.sin(theta)**2))
+                            / np.array(wv_range))
 
-        # Flip layer-based arrays since the last layer is the top layer
-        ns_film = np.flipud(ns_film)
-        np_film = np.flipud(np_film)
-        delta = np.flipud(delta)
 
-        return {'nsInc':ns_inc, 'npInc':np_inc, 'nsSub':ns_sub, 'npSub':np_sub,
-                'nsFilm':ns_film, 'npFilm':np_film, 'delta':delta}
+        # Flip layer-based arrays ns_film, np_film, delta
+        # since the last layer is the top layer
+        return {'ns_inc':ns_inc, 'np_inc':np_inc,
+                'ns_sub':ns_sub, 'np_sub':np_sub,
+                'ns_film':np.flipud(ns_film),
+                'np_film':np.flipud(np_film),
+                'delta':np.flipud(delta)}
 
     @staticmethod
     def c_mat(ns_film, np_film, delta):
@@ -155,29 +232,29 @@ class ThinFilmFilter:
 
         Parameters
         -----------
-        S11 (array): matrix entry\n
+        'ns_film' (array): s-polarized admittance of the film stack layers.\n
+        'np_film' (array): p-polarized admittance of the film stack layers.\n
+        'delta' (array): phase upon reflection for each film.
+
+
+        Returns
+        ------------
+        dictionary object of characteristic matrix\n
+        {key : result array}\n
+        { S11 (array): matrix entry\n
         S12 (array): matrix entry\n
         S21 (array): matrix entry\n
         S22 (array): matrix entry\n
         P11 (array): matrix entry\n
         P12 (array): matrix entry\n
         P21 (array): matrix entry\n
-        P22 (array): matrix entry
-
-        Returns
-        ------------
-        dictionary object of admittance of film stack layers value arrays\n
-        {key : result array}\n
-        { 'nsFilm' : s-polarized admittance of the film stack layers,\n
-        'npFilm' : p-polarized admittance of the film stack layers,\n
-        'delta' : phase upon reflection for each film }
+        P22 (array): matrix entry }
 
         Examples
         ------------
-        char_matrix = c_mat(nsFilm, npFilm, delta)\n
-        ns_film = char_matrix[ 'nsFilm' ]\n
-        d = char_matrix[ 'delta' ]
-
+        >>> char_matrix = c_mat(nsFilm, npFilm, delta)
+        >>> ns_film = char_matrix[ 'nsFilm' ]
+        >>> d = char_matrix[ 'delta' ]
         """
 
         # Calculation of the characteristic matrix elements
@@ -227,7 +304,7 @@ class ThinFilmFilter:
     @staticmethod
     def fresnel_film(admit_delta_output, cmat_output):
         """
-        Calculates the fresnel amplitudes & intensities of film. Relies on
+        Calculates the fresnel amplitudes & intensities of film. Requires
         output from admit_delta() and c_mat() methods.
 
         Parameters
@@ -248,6 +325,9 @@ class ThinFilmFilter:
         'rs' : s-polarized Fresnel Reflection Amplitude,\n
         'rp' : p-polarized Fresnel Reflection Amplitude }
 
+        Raises
+        ------------
+
         Examples
         --------------
         fresnel = fresnel_film(admit_delta_output, cmat_output)\n
@@ -258,51 +338,60 @@ class ThinFilmFilter:
 
         # Calculation of the admittances of the incident interface
         ns_f = ((np.array(cmat_output['S21']).astype(complex)
-                - np.array(admit_delta_output['nsSub']).astype(complex)
+                - np.array(admit_delta_output['ns_sub']).astype(complex)
                 * np.array(cmat_output['S22']).astype(complex))
                 / (np.array(cmat_output['S11']).astype(complex)
-                - np.array(admit_delta_output['nsSub']).astype(complex)
+                - np.array(admit_delta_output['ns_sub']).astype(complex)
                 * np.array(cmat_output['S12']).astype(complex)))
         np_f = ((np.array(cmat_output['P21']).astype(complex)
-                + np.array(admit_delta_output['npSub']).astype(complex)
+                + np.array(admit_delta_output['np_sub']).astype(complex)
                 * np.array(cmat_output['P22']).astype(complex))
                 / (np.array(cmat_output['P11']).astype(complex)
-                + np.array(admit_delta_output['npSub']).astype(complex)
+                + np.array(admit_delta_output['np_sub']).astype(complex)
                 * np.array(cmat_output['P12']).astype(complex)))
 
         # Calculation of the Fresnel Amplitude Coefficients
-        r_s = ((np.array(admit_delta_output['nsInc']).astype(complex) + ns_f)
-            / (np.array(admit_delta_output['nsInc']).astype(complex) - ns_f))
-        r_p = ((np.array(admit_delta_output['npInc']).astype(complex) - np_f)
-            / (np.array(admit_delta_output['npInc']).astype(complex) + np_f))
+        r_s = ((np.array(admit_delta_output['ns_inc']).astype(complex) + ns_f)
+            / (np.array(admit_delta_output['ns_inc']).astype(complex) - ns_f))
+        r_p = ((np.array(admit_delta_output['np_inc']).astype(complex) - np_f)
+            / (np.array(admit_delta_output['np_inc']).astype(complex) + np_f))
         t_s = ((1 + r_s)
             / (np.array(cmat_output['S11']).astype(complex)
             - np.array(cmat_output['S12']).astype(complex)
-            * np.array(admit_delta_output['nsSub']).astype(complex)))
+            * np.array(admit_delta_output['ns_sub']).astype(complex)))
         t_p = ((1 + r_p)
             / (np.array(cmat_output['P11']).astype(complex)
             + np.array(cmat_output['P12']).astype(complex)
-            * np.array(admit_delta_output['npSub']).astype(complex)))
+            * np.array(admit_delta_output['np_sub']).astype(complex)))
 
         # Calculation of the Fresnel Amplitude Intensities
         big_r_s = np.square(np.abs(r_s))
         big_r_p = np.square(np.abs(r_p))
-        big_t_s = (np.real(np.array(admit_delta_output['nsSub']).astype(complex)
-            / np.array(admit_delta_output['nsInc']).astype(complex)) * np.square(np.abs(t_s)))
-        big_t_p = (np.real(np.array(admit_delta_output['npSub']).astype(complex)
-            / np.array(admit_delta_output['npInc']).astype(complex)) * np.square(np.abs(t_p)))
+        big_t_s = (np.real(np.array(admit_delta_output['ns_sub']).astype(complex)
+            / np.array(admit_delta_output['ns_inc']).astype(complex)) * np.square(np.abs(t_s)))
+        big_t_p = (np.real(np.array(admit_delta_output['np_sub']).astype(complex)
+            / np.array(admit_delta_output['np_inc']).astype(complex)) * np.square(np.abs(t_p)))
 
         return {'Ts':big_t_s, 'Tp':big_t_p, 'Rs':big_r_s, 'Rp':big_r_p,
                 'ts':t_s, 'tp':t_p, 'rs':r_s, 'rp':r_p}
 
-    #@staticmethod
-    def fil_spec(self, incident_angle):
+    @staticmethod
+    def fil_spec(wv_range, substrate, h_mat, l_mat, layer_stack,
+                        materials, theta, sub_thick, units='deg'):
         """
         Calculates the transmission and reflection spectra of a thin-film interference filter.
 
         Parameters
         ------------
-        incident_angle (int): angle of incidence in degrees.
+        wv_range
+        substrate
+        h_mat
+        l_mat
+        layer_stack
+        materials
+        theta
+        sub_thick
+        units='deg'
 
         Returns
         -----------
@@ -314,25 +403,29 @@ class ThinFilmFilter:
         'R' : average reflection spectrum over wavelength range,\n
         'Rs' : s-polarized reflection spectrum over wavelength range,\n
         'Rp' : p-polarized reflection spectrum over wavelength range }
+
+        See Also
+        -------------
+
         """
 
         # substrate refractive index
-        s_n = np.array(self.init_conditions['substrate']).astype(complex)
+        s_n = np.array(substrate).astype(complex)
         # film refractive indices
-        f_n = np.zeros((len(self.init_conditions['layers']),
-                np.shape(self.init_conditions['wv'])[1])).astype(complex)
+        f_n = np.zeros((len(layer_stack),
+                np.shape(wv_range)[1])).astype(complex)
         # incident medium refractive index (assume incident medium is air)
-        i_n = np.ones(np.shape(self.init_conditions['wv'])).astype(complex)
+        i_n = np.ones(np.shape(wv_range)).astype(complex)
 
         # convert incident angle from degrees to radians
-        theta = incident_angle * (np.pi / 180)
+        theta = theta * (np.pi / 180)
 
         # get measured substrate & thin film optical constant data
-        for i in range(0, len(self.init_conditions['materials'])):
-            if self.init_conditions['materials'][i] == "H":
-                f_n[i,:] = self.init_conditions['high_mat']
+        for i in range(0, len(materials)):
+            if materials[i] == "H":
+                f_n[i,:] = h_mat
             else:
-                f_n[i,:] = self.init_conditions['low_mat']
+                f_n[i,:] = l_mat
 
         # calculate the effective substrate refractive index (for abs. substrates)
         inside1 = (np.imag(s_n)**2 + np.real(s_n)**2)**2 + 2*(np.imag(s_n) - \
@@ -345,29 +438,29 @@ class ThinFilmFilter:
         sn_eff = np.sqrt(inside2)
 
         # calculate the absorption coefficient for multiple reflections
-        alpha = (4*np.pi*np.imag(s_n)) / np.array(self.init_conditions['wv'])
+        alpha = (4 * np.pi * np.imag(s_n)) / np.array(wv_range)
         alpha = alpha.astype(complex)
 
         # Calculate the path length through the substrate
-        path_len = ((self.design_settings['sub_thick'] * (10**6))
-                / np.sqrt(1 - (np.power(np.abs(i_n), 2)
-                * (np.sin(theta)**2) / np.power(sn_eff, 2))))
+        path_len = ((sub_thick * (10**6))
+                / np.sqrt(1 - (np.abs(i_n)**2
+                * (np.sin(theta)**2) / sn_eff**2)))
         path_len = path_len.astype(complex)
 
         # Calculation of Fresnel Amplitudes & Intensities for
         # incident medium / substrate interface
-        fb_out = self.fresnel_bare(i_n, s_n, theta)
+        fb_out = fresnel_bare(i_n, s_n, theta)
 
         # the reflection originates from the incident medium
-        admit_a = self.admit_delta(i_n, s_n, f_n, theta)
-        cmat_a = self.c_mat(admit_a['nsFilm'], admit_a['npFilm'], admit_a['delta'])
-        ff_a = self.fresnel_film(admit_a, cmat_a)
+        admit_a = admit_delta(i_n, s_n, f_n, theta)
+        cmat_a = c_mat(admit_a['ns_film'], admit_a['np_film'], admit_a['delta'])
+        ff_a = fresnel_film(admit_a, cmat_a)
 
         # the reflection originates from the substrate medium
         theta_b = np.arcsin(i_n / s_n * np.sin(theta))
-        admit_b = self.admit_delta(sn_eff, i_n, np.flipud(f_n), theta_b)
-        cmat_b = self.c_mat(admit_b['nsFilm'], admit_b['npFilm'], admit_b['delta'])
-        ff_1b = self.fresnel_film(admit_b, cmat_b)
+        admit_b = admit_delta(sn_eff, i_n, np.flipud(f_n), theta_b)
+        cmat_b = c_mat(admit_b['ns_film'], admit_b['np_film'], admit_b['delta'])
+        ff_1b = fresnel_film(admit_b, cmat_b)
 
         # calculation of the filter transmission and reflection
         big_r_s = ff_a['Rs'] + (((ff_a['Ts']**2) * fb_out['Rs'] * np.exp(-2 * alpha * path_len))
@@ -383,19 +476,19 @@ class ThinFilmFilter:
 
         return {'T':big_t, 'Ts':big_t_s, 'Tp':big_t_p, 'R':big_r, 'Rs':big_r_s, 'Rp':big_r_p}
 
-    #@staticmethod
-    def reg_vec(self, big_t, big_r):
+    @staticmethod
+    def reg_vec(opt_comp, big_t, big_r, wv_range):
         """
         Calculates the optical computation regression vector.
 
         Parameters
         ----------
-        T (array):\n
-        R (array):\n
+        big_t (array):\n
+        big_r (array):\n
 
         Returns
         ----------
-        rv (array): regression vector
+        computed regression vector as an array
 
         """
 
@@ -403,29 +496,29 @@ class ThinFilmFilter:
         r_vec = []
 
         # calculation based on 'opt_comp' design setting
-        if self.design_settings['opt_comp'] == 0:
+        if opt_comp == 0:
             r_vec = big_t - big_r
-        elif self.design_settings['opt_comp'] == 1:
+        elif opt_comp == 1:
             r_vec = (big_t - big_r) / (big_t + big_r)
-        elif self.design_settings['opt_comp'] == 2:
+        elif opt_comp == 2:
             r_vec = big_t - .5 * big_r
-        elif self.design_settings['opt_comp'] == 3:
-            r_vec = 2 * big_t - np.ones(np.shape(self.init_conditions['wv'])[1])
-        elif self.design_settings['opt_comp'] == 4:
+        elif opt_comp == 3:
+            r_vec = 2 * big_t - np.ones(np.shape(wv_range)[1])
+        elif opt_comp == 4:
             r_vec = big_t
-        elif self.design_settings['opt_comp'] == 5:
+        elif opt_comp == 5:
             r_vec = big_t
-        elif self.design_settings['opt_comp'] == 6:
+        elif opt_comp == 6:
             r_vec = big_t - big_r
-        elif self.design_settings['opt_comp'] == 7:
+        elif opt_comp == 7:
             r_vec = (big_t - big_r) / (big_t + big_r)
-        elif self.design_settings['opt_comp'] == 8:
+        elif opt_comp == 8:
             r_vec = big_t - .5 * big_r
-        elif self.design_settings['opt_comp'] == 9:
-            r_vec = 2 * big_t - np.ones(np.shape(self.init_conditions['wv'])[1])
-        elif self.design_settings['opt_comp'] == 10:
+        elif opt_comp == 9:
+            r_vec = 2 * big_t - np.ones(np.shape(wv_range)[1])
+        elif opt_comp == 10:
             r_vec = big_t
-        elif self.design_settings['opt_comp'] == 11:
+        elif opt_comp == 11:
             r_vec = big_t
 
         # calculation result
