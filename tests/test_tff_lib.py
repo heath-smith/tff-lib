@@ -21,6 +21,7 @@ from pathlib import Path
 import sys
 import os
 import json
+import warnings
 
 # import tff_lib for testing
 from tff_lib.tff_lib import ThinFilmFilter as tff
@@ -128,7 +129,8 @@ class TestThinFilmFilter(unittest.TestCase):
         sys.stdout.write('\n\t*with units = "some string"... ')
         # assert that a UnitError exception is raised
         with self.assertRaises(UnitError):
-            tff.fresnel_bare(test_i_n, test_s_n, test_theta, units='some string')
+            tff.fresnel_bare(test_i_n, test_s_n, test_theta,
+                                units='some string')
 
         if test_fails == 0:
             # write 'PASSED' to output stream if
@@ -141,8 +143,9 @@ class TestThinFilmFilter(unittest.TestCase):
 
         Comments
         -------------
-        Use numpy testing functionality to compare numpy arrays. See FILSPEC lines 447-464
-        in moe.py module for definition of the test arrays.
+        Use numpy testing functionality to compare numpy arrays.
+        See FILSPEC lines 447-464 in moe.py module for definition
+        of the test arrays.
         """
 
         # update output stream
@@ -173,13 +176,14 @@ class TestThinFilmFilter(unittest.TestCase):
             else:
                 test_f_n[i, :] = np.array(test_cond['low_mat'])
 
+        # set thresholds for decimal comparison
+        r_tol = 1e-14
+        a_tol = .1
+
         #-------- test admit_delta() with no 'units' arg ---------#
-        sys.stdout.write('\n\t*w/o units param... ')
+        sys.stdout.write('\n\t* no units param... ')
         test_ad_no_units = tff.admit_delta(test_wv_range, test_layers, test_theta,
                                             test_i_n, test_s_n, test_f_n)
-
-        # set decimal threshold for array comparison
-        thresh = 4
 
         # assert equality in test results vs. expected results
         # use numpy testing functions for array comparison
@@ -188,7 +192,7 @@ class TestThinFilmFilter(unittest.TestCase):
             try:
                 nptest.assert_allclose(test_ad_no_units[key],
                     np.array(test_exp[key]).astype(complex),
-                    rtol=1e-14, atol=.1)
+                    rtol=r_tol, atol=a_tol)
             except AssertionError as err:
                 test_fails += 1
                 sys.stderr.write('\nAssertion Error: ' + key + str(err))
@@ -197,6 +201,81 @@ class TestThinFilmFilter(unittest.TestCase):
             # write 'PASSED' to output stream if
             # all assertions pass
             sys.stdout.write('PASSED')
+
+        #-------- test admit_delta() with units = 'rad' ---------#
+        sys.stdout.write('\n\t* units="rad"... ')
+        test_ad_units = tff.admit_delta(test_wv_range, test_layers,
+                                    test_theta, test_i_n, test_s_n,
+                                    test_f_n, units='rad')
+
+        # assert equality in test results vs. expected results
+        # use numpy testing functions for array comparison
+        for key in test_exp:
+            try:
+                nptest.assert_allclose(test_ad_units[key],
+                    np.array(test_exp[key]).astype(complex),
+                    rtol=r_tol, atol=a_tol)
+            except AssertionError as err:
+                test_fails += 1
+                sys.stderr.write('\nAssertion Error: ' + key + str(err))
+
+        if test_fails == 0:
+            # write 'PASSED' to output stream if
+            # all assertions pass
+            sys.stdout.write('PASSED')
+
+        #--- test admit_delta() with wrong shape on i_n, s_n, f_n ----#
+        sys.stdout.write('\n\t* wrong array shapes... ')
+        # delete elements from test_i_n then run admit_delta()
+        wrong_i_n = np.delete(test_i_n, [1, 4, 20, 56, 89], axis=1)
+        # assert that a ValueError exception is raised
+        with self.assertRaises(ValueError):
+            tff.admit_delta(test_wv_range, test_layers,
+                test_theta, wrong_i_n, test_s_n, test_f_n)
+        # delete elements from test_s_n
+        wrong_s_n = np.delete(test_s_n, [5, 8, 25, 47, 68], axis=1)
+        # assert that a ValueError exception is raised
+        with self.assertRaises(ValueError):
+            tff.admit_delta(test_wv_range, test_layers,
+                test_theta, test_i_n, wrong_s_n, test_f_n)
+        # delete elements from test_s_n
+        wrong_f_n = np.delete(test_f_n, [1, 3, 5, 8], axis=0)
+        # assert that a ValueError exception is raised
+        with self.assertRaises(ValueError):
+            tff.admit_delta(test_wv_range, test_layers,
+                    test_theta,test_i_n, test_s_n, wrong_f_n)
+
+        if test_fails == 0:
+            # write 'PASSED' to output stream if
+            # all assertions pass
+            sys.stdout.write('PASSED')
+
+        #---- test admit_delta() with wrong array types -----#
+        sys.stdout.write('\n\t* wrong array types... ')
+        warnings.filterwarnings("ignore") # temporarily disable warnings
+        wrong_type_i_n = test_i_n.astype(float)
+        # assert that a TypeError exception is raised
+        with self.assertRaises(TypeError):
+            tff.admit_delta(test_wv_range, test_layers,
+                test_theta, wrong_type_i_n, test_s_n, test_f_n)
+        wrong_type_s_n = test_s_n.astype(float)
+        # assert that a TypeError exception is raised
+        with self.assertRaises(TypeError):
+            tff.admit_delta(test_wv_range, test_layers,
+                test_theta, test_i_n, wrong_type_s_n, test_f_n)
+        wrong_type_f_n = test_s_n.astype(float)
+        # assert that a TypeError exception is raised
+        with self.assertRaises(TypeError):
+            tff.admit_delta(test_wv_range, test_layers,
+                test_theta, test_i_n, test_s_n, wrong_type_f_n)
+
+        if test_fails == 0:
+            # write 'PASSED' to output stream if
+            # all assertions pass
+            sys.stdout.write('PASSED')
+
+        # reset warnings
+        warnings.filterwarnings("default")
 
     def test_c_mat(self):
         """

@@ -167,7 +167,7 @@ class ThinFilmFilter:
 
         # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
         # data structure should be 'np.ndarray' and all shapes should match wv_range
-        for arr in [i_n, s_n, f_n]:
+        for i, arr in enumerate([i_n, s_n, f_n]):
             if arr.dtype != 'complex128' or arr.dtype != 'complex':
                 # raise TypeError if any array is not complex
                 raise TypeError("Incorrect type: expected 'complex' type but received "
@@ -177,13 +177,18 @@ class ThinFilmFilter:
                 raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
                                 + type(arr))
 
-            # validate that shapes are equal to the wv_range shape
-            if (np.shape(arr) != np.shape(wv_range)
-                or np.shape(arr) != (len(layer_stack),len(wv_range))):
-                raise ValueError("ValueError: Expected arrays of shape "
-                                + str(np.shape(wv_range)) + " but received "
-                                + str(np.shape(arr)))
-
+            # validate that shapes of i_n, s_n are equal to the wv_range shape
+            if i < 2:
+                if np.shape(arr) != np.shape(wv_range):
+                    raise ValueError("ValueError: Expected arrays of shape "
+                                    + str(np.shape(wv_range)) + " but received "
+                                    + str(np.shape(arr)))
+            # validate f_n shape is equal to LEN(layer_stack) X LEN(wl_range)
+            if i == 2:
+                if np.shape(arr) != (len(layer_stack),np.shape(wv_range)[1]):
+                    raise ValueError("ValueError: Expected arrays of shape ("
+                        + str(len(layer_stack)) + ', ' + str(np.shape(wv_range)[1])
+                        + ") but received " + str(np.shape(arr)))
 
         # Calculation of the complex dielectric constants from measured
         # optical constants
@@ -216,7 +221,6 @@ class ThinFilmFilter:
                             * np.sqrt(f_e[i, :] - i_e
                             * np.sin(theta)**2))
                             / np.array(wv_range))
-
 
         # Flip layer-based arrays ns_film, np_film, delta
         # since the last layer is the top layer
