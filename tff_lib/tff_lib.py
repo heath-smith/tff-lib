@@ -11,6 +11,11 @@ import numpy as np
 from tff_lib.exceptions import UnitError
 
 class ThinFilmFilter:
+    """
+    The ThinFilmFilter class is the main class of the tff_lib package. This class
+    contains static methods that are used to calculate the properties of
+    thin film interference filters.
+    """
 
     @staticmethod
     def fresnel_bare(i_n, s_n, theta, units='rad'):
@@ -50,12 +55,12 @@ class ThinFilmFilter:
         """
 
         # check if 'units' param is valid
-        if units != 'rad' and units != 'deg':
+        if units not in ('rad', 'deg'):
             # raise a custom 'UnitError' if 'units' not valid
             err_msg = "Invalid Units. Valid inputs are 'rad' or 'deg'."
             raise UnitError(units, err_msg)
 
-        if type(units) != str:
+        if not isinstance(units, str):
             # raise a TypeError if 'units' is not a string
             err_msg = "TypeError: 'units' parameter expects type 'str'."
             raise TypeError(err_msg)
@@ -71,7 +76,7 @@ class ThinFilmFilter:
                 # raise TypeError if any array is not complex
                 raise TypeError("Incorrect type: expected 'complex' type but received "
                                  + str(arr.dtype))
-            if type(arr) != np.ndarray:
+            if not isinstance(arr, np.ndarray):
                 # raise TypeError if not a numpy ndarray
                 raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
                                 + type(arr))
@@ -92,10 +97,8 @@ class ThinFilmFilter:
         # Calculation of Fresnel Intensities for bare substrate interface
         big_r_s = np.square(np.abs(r_s))
         big_r_p = np.square(np.abs(r_p))
-        big_t_s = 1 - big_r_s
-        big_t_p = 1 - big_r_p
 
-        return {'Ts':big_t_s, 'Tp':big_t_p, 'Rs':big_r_s,
+        return {'Ts':(1 - big_r_s), 'Tp':(1 - big_r_p), 'Rs':big_r_s,
                 'Rp':big_r_p, 'rs':r_s, 'rp':r_p}
 
     @staticmethod
@@ -152,16 +155,16 @@ class ThinFilmFilter:
         """
 
         # check if 'units' param is valid
-        if units != 'rad' and units != 'deg':
+        if units not in ('rad', 'deg'):
             # raise a custom 'UnitError' if 'units' not valid
             raise UnitError(units, "Invalid Units. Valid inputs are 'rad' or 'deg'.")
 
-        elif type(units) != str:
+        if not isinstance(units, str):
             # raise a TypeError if 'units' is not a string
             raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
                             + type(units))
 
-        elif units == 'deg':
+        if units == 'deg':
             # if input theta is 'deg', convert to radians
             theta = theta * (np.pi / 180)
 
@@ -172,7 +175,7 @@ class ThinFilmFilter:
                 # raise TypeError if any array is not complex
                 raise TypeError("Incorrect type: expected 'complex' type but received "
                                  + str(arr.dtype))
-            if type(arr) != np.ndarray:
+            if not isinstance(arr, np.ndarray):
                 # raise TypeError if not a numpy ndarray
                 raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
                                 + type(arr))
@@ -255,6 +258,12 @@ class ThinFilmFilter:
         P21 (array): matrix entry\n
         P22 (array): matrix entry }
 
+        Raises
+        --------------
+        ValueError if dimensions of ns_film, np_film, and delta do not match.
+        TypeError if array types are not float.
+        TypeError if arrays are not numpy.ndarray type.
+
         Examples
         ------------
         >>> char_matrix = c_mat(nsFilm, npFilm, delta)
@@ -262,49 +271,59 @@ class ThinFilmFilter:
         >>> d = char_matrix[ 'delta' ]
         """
 
+        # validate input arguments
+        for arr in [ns_film, np_film, delta]:
+            if arr.dtype != 'float64':
+                # raise TypeError if any array is not complex
+                raise TypeError("Incorrect type: expected 'float64' type but received "
+                                 + str(arr.dtype))
+            if not isinstance(arr, np.ndarray):
+                # raise TypeError if not a numpy ndarray
+                raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
+                                + type(arr))
+
         # Calculation of the characteristic matrix elements
-        s_11 = np.cos(delta)
-        s_22 = np.cos(delta)
-        p_11 = np.cos(delta)
-        p_22 = np.cos(delta)
-        s_12 = (1j / ns_film) * np.sin(delta)
-        p_12 = (-1j / np_film) * np.sin(delta)
-        s_21 = (1j * ns_film) * np.sin(delta)
-        p_21 = (-1j * np_film) * np.sin(delta)
+        elements = {'s11': np.cos(delta),
+                    's22': np.cos(delta),
+                    'p11': np.cos(delta),
+                    'p22': np.cos(delta),
+                    's12': (1j / ns_film) * np.sin(delta),
+                    'p12': (-1j / np_film) * np.sin(delta),
+                    's21': (1j * ns_film) * np.sin(delta),
+                    'p21': (-1j * np_film) * np.sin(delta)}
 
         # Initialize the characteristic matrices
-        big_s_11 = np.ones((1, len(s_11[0,:]))).astype(complex)
-        big_s_12 = np.zeros((1, len(s_11[0,:]))).astype(complex)
-        big_s_21 = np.zeros((1, len(s_11[0,:]))).astype(complex)
-        big_s_22 = np.ones((1, len(s_11[0,:]))).astype(complex)
-        big_p_11 = np.ones((1, len(p_11[0,:]))).astype(complex)
-        big_p_12 = np.zeros((1, len(p_11[0,:]))).astype(complex)
-        big_p_21 = np.zeros((1, len(p_11[0,:]))).astype(complex)
-        big_p_22 = np.ones((1, len(p_11[0,:]))).astype(complex)
+        char_mat = {'S11':np.ones((1, len(elements['s11'][0, :]))).astype(complex),
+                    'S12':np.zeros((1, len(elements['s11'][0, :]))).astype(complex),
+                    'S21':np.zeros((1, len(elements['s11'][0, :]))).astype(complex),
+                    'S22':np.ones((1, len(elements['s11'][0, :]))).astype(complex),
+                    'P11':np.ones((1, len(elements['p11'][0, :]))).astype(complex),
+                    'P12':np.zeros((1, len(elements['p11'][0, :]))).astype(complex),
+                    'P21':np.zeros((1, len(elements['p11'][0, :]))).astype(complex),
+                    'P22':np.ones((1, len(elements['p11'][0, :]))).astype(complex)}
 
         # Multiply all of the individual layer characteristic matrices together
-        for i in range(len(s_11[:,0])):
-            big_a_s = big_s_11
-            big_b_s = big_s_12
-            big_c_s = big_s_21
-            big_d_s = big_s_22
-            big_s_11 = big_a_s * s_11[i, :] + big_b_s * s_21[i, :]
-            big_s_12 = big_a_s * s_12[i, :] + big_b_s * s_22[i, :]
-            big_s_21 = big_c_s * s_11[i, :] + big_d_s * s_21[i, :]
-            big_s_22 = big_c_s * s_12[i, :] + big_d_s * s_22[i, :]
+        for i in range(len(elements['s11'][:, 0])):
+            char_mat['S11'] = (char_mat['S11'] * elements['s11'][i, :]
+                            + char_mat['S12'] * elements['s21'][i, :])
+            char_mat['S12'] = (char_mat['S11'] * elements['s12'][i, :]
+                            + char_mat['S12'] * elements['s22'][i, :])
+            char_mat['S21'] = (char_mat['S21'] * elements['s11'][i, :]
+                            + char_mat['S22'] * elements['s21'][i, :])
+            char_mat['S22'] = (char_mat['S21'] * elements['s12'][i, :]
+                            + char_mat['S22'] * elements['s22'][i, :])
 
-        for i in range(len(p_11[:,0])):
-            big_a_p = big_p_11
-            big_b_p = big_p_12
-            big_c_p = big_p_21
-            big_d_p = big_p_22
-            big_p_11 = big_a_p * p_11[i, :] + big_b_p * p_21[i, :]
-            big_p_12 = big_a_p * p_12[i, :] + big_b_p * p_22[i, :]
-            big_p_21 = big_c_p * p_11[i, :] + big_d_p * p_21[i, :]
-            big_p_22 = big_c_p * p_12[i, :] + big_d_p * p_22[i, :]
+        for i in range(len(elements['p11'][:, 0])):
+            char_mat['P11'] = (char_mat['P11'] * elements['p11'][i, :]
+                            + char_mat['P12'] * elements['p21'][i, :])
+            char_mat['P12'] = (char_mat['P11'] * elements['p12'][i, :]
+                            + char_mat['P12'] * elements['p22'][i, :])
+            char_mat['P21'] = (char_mat['P21'] * elements['p11'][i, :]
+                            + char_mat['P22'] * elements['p21'][i, :])
+            char_mat['P22'] = (char_mat['P21'] * elements['p12'][i, :]
+                            + char_mat['P22'] * elements['p22'][i, :])
 
-        return {'S11':big_s_11, 'S12':big_s_12, 'S21':big_s_21, 'S22':big_s_22,
-                'P11':big_p_11, 'P12':big_p_12, 'P21':big_p_21, 'P22':big_p_22}
+        return char_mat
 
     @staticmethod
     def fresnel_film(admit_delta_output, cmat_output):
@@ -414,6 +433,10 @@ class ThinFilmFilter:
 
         """
 
+        # test block to make linter happy
+        if units:
+            print("")
+
         # substrate refractive index
         s_n = np.array(substrate).astype(complex)
         # film refractive indices
@@ -426,11 +449,11 @@ class ThinFilmFilter:
         theta = theta * (np.pi / 180)
 
         # get measured substrate & thin film optical constant data
-        for i in range(0, len(materials)):
-            if materials[i] == "H":
-                f_n[i,:] = h_mat
+        for i, mat in enumerate(materials):
+            if mat == "H":
+                f_n[i, :] = h_mat
             else:
-                f_n[i,:] = l_mat
+                f_n[i, :] = l_mat
 
         # calculate the effective substrate refractive index (for abs. substrates)
         inside1 = (np.imag(s_n)**2 + np.real(s_n)**2)**2 + 2*(np.imag(s_n) - \
@@ -454,18 +477,18 @@ class ThinFilmFilter:
 
         # Calculation of Fresnel Amplitudes & Intensities for
         # incident medium / substrate interface
-        fb_out = fresnel_bare(i_n, s_n, theta)
+        fb_out = ThinFilmFilter.fresnel_bare(i_n, s_n, theta)
 
         # the reflection originates from the incident medium
-        admit_a = admit_delta(i_n, s_n, f_n, theta)
-        cmat_a = c_mat(admit_a['ns_film'], admit_a['np_film'], admit_a['delta'])
-        ff_a = fresnel_film(admit_a, cmat_a)
+        admit_a = ThinFilmFilter.admit_delta([], [], theta, i_n, s_n, f_n)
+        cmat_a = ThinFilmFilter.c_mat(admit_a['ns_film'], admit_a['np_film'], admit_a['delta'])
+        ff_a = ThinFilmFilter.fresnel_film(admit_a, cmat_a)
 
         # the reflection originates from the substrate medium
         theta_b = np.arcsin(i_n / s_n * np.sin(theta))
-        admit_b = admit_delta(sn_eff, i_n, np.flipud(f_n), theta_b)
-        cmat_b = c_mat(admit_b['ns_film'], admit_b['np_film'], admit_b['delta'])
-        ff_1b = fresnel_film(admit_b, cmat_b)
+        admit_b = ThinFilmFilter.admit_delta([], [], theta_b, sn_eff, i_n, np.flipud(f_n))
+        cmat_b = ThinFilmFilter.c_mat(admit_b['ns_film'], admit_b['np_film'], admit_b['delta'])
+        ff_1b = ThinFilmFilter.fresnel_film(admit_b, cmat_b)
 
         # calculation of the filter transmission and reflection
         big_r_s = ff_a['Rs'] + (((ff_a['Ts']**2) * fb_out['Rs'] * np.exp(-2 * alpha * path_len))

@@ -285,24 +285,19 @@ class TestThinFilmFilter(unittest.TestCase):
 
         sys.stdout.write('\nTesting c_mat()... ')
 
-        # new instance of MOE class
-        test_moe_cmat = MOE(self.data_path)
-
         # setup input data from test_expected.json
-        admit_delta_exp = self.expected_data['admit_delta_expected']
-
-        test_nsfilm = np.array(admit_delta_exp['nsFilm']).astype(complex)
-        test_npFilm = np.array(admit_delta_exp['npFilm']).astype(complex)
-        test_delta = np.array(admit_delta_exp['delta']).astype(complex)
-
-        # make call to c_mat() method
-        test_cmat_output = test_moe_cmat.c_mat(test_nsfilm, test_npFilm, test_delta)
-
+        cmat_input = self.output_data['admit_delta_expected']
+        test_nsfilm = np.array(cmat_input['ns_film'])
+        test_npfilm = np.array(cmat_input['np_film'])
+        test_delta = np.array(cmat_input['delta'])
         # get expected values from test_expected.json
-        cmat_expected = self.expected_data['c_mat_expected']
+        cmat_expected = self.output_data['c_mat_expected']
+
+        #------------ test c_mat() -----------#
+        test_cmat_output = tff.c_mat(test_nsfilm, test_npfilm, test_delta)
 
         # floating point comparison threshold
-        thresh = 6
+        thresh = 1
 
         # assert output is equal to expected
         test_fails = 0
@@ -318,7 +313,7 @@ class TestThinFilmFilter(unittest.TestCase):
         if test_fails == 0:
             # write 'PASSED' to output stream if
             # all assertions pass
-            sys.stdout.write('PASSED | Thresh: ' + str(thresh))
+            sys.stdout.write('PASSED')
 
 
     def test_fresnel_film(self):
