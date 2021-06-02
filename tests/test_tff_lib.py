@@ -294,16 +294,17 @@ class TestThinFilmFilter(unittest.TestCase):
         cmat_expected = self.output_data['c_mat_expected']
 
         #------------ test c_mat() -----------#
-        test_cmat_output = tff.c_mat(test_nsfilm, test_npfilm, test_delta)
+        sys.stdout.write('\n\tcorrect data types... ')
+        test_cmat = tff.c_mat(test_nsfilm, test_npfilm, test_delta)
 
         # floating point comparison threshold
         thresh = 1
 
         # assert output is equal to expected
         test_fails = 0
-        for key in test_cmat_output:
+        for key in test_cmat:
             try:
-                nptest.assert_almost_equal(np.array(test_cmat_output[key]).astype(complex),
+                nptest.assert_almost_equal(np.array(test_cmat[key]).astype(complex),
                     np.array(cmat_expected[key]).astype(complex),
                     decimal=thresh, verbose=True)
             except AssertionError as err:
@@ -315,6 +316,29 @@ class TestThinFilmFilter(unittest.TestCase):
             # all assertions pass
             sys.stdout.write('PASSED')
 
+        #---------- test c_mat() with incorrect data types ------------#
+        sys.stdout.write('\n\tincorrect data types... ')
+        nsfilm_wrong_type = np.array(test_nsfilm).astype(complex)
+        npfilm_wrong_type = np.array(test_npfilm).astype(complex)
+        delta_wrong_type = np.array(test_delta).astype(complex)
+
+        # assert that a TypeError exception is raised
+        # wrong type ns_film
+        with self.assertRaises(TypeError):
+            tff.c_mat(nsfilm_wrong_type, test_npfilm, test_delta)
+        # assert that a TypeError exception is raised
+        # wrong type np_film
+        with self.assertRaises(TypeError):
+            tff.c_mat(test_nsfilm, npfilm_wrong_type, test_delta)
+        # assert that a TypeError exception is raised
+        # wrong type delta
+        with self.assertRaises(TypeError):
+            tff.c_mat(test_nsfilm, test_npfilm, delta_wrong_type)
+
+        if test_fails == 0:
+            # write 'PASSED' to output stream if
+            # all assertions pass
+            sys.stdout.write('PASSED')
 
     def test_fresnel_film(self):
         """
