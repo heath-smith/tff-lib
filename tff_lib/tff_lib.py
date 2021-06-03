@@ -167,7 +167,7 @@ class ThinFilmFilter:
         if units == 'deg':
             # if input theta is 'deg', convert to radians
             theta = theta * (np.pi / 180)
-
+        """
         # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
         # data structure should be 'np.ndarray' and all shapes should match wv_range
         for i, arr in enumerate([i_n, s_n, f_n]):
@@ -192,7 +192,7 @@ class ThinFilmFilter:
                     raise ValueError("ValueError: Expected arrays of shape ("
                         + str(len(layer_stack)) + ', ' + str(np.shape(wv_range)[1])
                         + ") but received " + str(np.shape(arr)))
-
+        """
         # initialize dictionary to store admit_delta calculations
         admit_calc = {}
 
@@ -277,15 +277,15 @@ class ThinFilmFilter:
         """
 
         # validate input arguments
-        for arr in [ns_film, np_film, delta]:
-            if arr.dtype != 'float64':
-                # raise TypeError if any array is not complex
-                raise TypeError("Incorrect type: expected 'float64' type but received "
-                                 + str(arr.dtype))
-            if not isinstance(arr, np.ndarray):
-                # raise TypeError if not a numpy ndarray
-                raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
-                                + type(arr))
+        #for arr in [ns_film, np_film, delta]:
+        #    if arr.dtype != 'float64':
+        #        # raise TypeError if any array is not complex
+        #        raise TypeError("Incorrect type: expected 'float64' type but received "
+        #                         + str(arr.dtype))
+        #    if not isinstance(arr, np.ndarray):
+        #        # raise TypeError if not a numpy ndarray
+        #        raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
+        #                        + type(arr))
 
         # Calculation of the characteristic matrix elements
         elements = {'s11': np.cos(delta),
@@ -470,7 +470,7 @@ class ThinFilmFilter:
         return len_path
 
     @staticmethod
-    def incident_reflection(i_n, s_n, f_n, theta, units='rad'):
+    def incident_reflection(wv_range, layers, i_n, s_n, f_n, theta, units='rad'):
         """
         Calculates the reflection that originates from the incident medium.
 
@@ -490,7 +490,7 @@ class ThinFilmFilter:
         inc_ref = {}
 
         # calculate admittances
-        inc_ref['admit_delta'] = ThinFilmFilter.admit_delta([], [], theta, i_n, s_n, f_n)
+        inc_ref['admit_delta'] = ThinFilmFilter.admit_delta(wv_range, layers, theta, i_n, s_n, f_n)
 
         # calculate the characteristic matrix
         inc_ref['c_mat'] = ThinFilmFilter.c_mat(inc_ref['admit_delta']['ns_film'],
@@ -504,7 +504,7 @@ class ThinFilmFilter:
         return inc_ref
 
     @staticmethod
-    def substrate_reflection(i_n, s_n, f_n, theta, sn_eff, units='rad'):
+    def substrate_reflection(wv_range, layers, i_n, s_n, f_n, theta, sn_eff, units='rad'):
         """
         Calculates the reflection that originates from the substrate medium.
 
@@ -526,7 +526,7 @@ class ThinFilmFilter:
         theta = np.arcsin(i_n / s_n * np.sin(theta))
 
         # calculate admittances
-        sub_ref['admit_delta'] = ThinFilmFilter.admit_delta([], [], theta,
+        sub_ref['admit_delta'] = ThinFilmFilter.admit_delta(wv_range, layers, theta,
                                                 sn_eff, i_n, np.flipud(f_n))
 
         # calculate characteristic matrix
@@ -541,7 +541,7 @@ class ThinFilmFilter:
         return sub_ref
 
     @staticmethod
-    def fil_spec(*args, units='rad'):
+    def fil_spec(*args, **kwargs):
         #(units='deg'):
         """
         Calculates the transmission and reflection spectra of a thin-film interference filter.
@@ -601,6 +601,11 @@ class ThinFilmFilter:
                 raise ValueError("Not enough input arguments. Expected 8 but received "
                                 + str(len(args)))
 
+        if kwargs:
+            if kwargs['units'] == 'deg':
+                # convert incident angle from degrees to radians
+                theta = theta * (np.pi / 180)
+
         # define dict to store filspec calculations
         spec = {}
 
@@ -615,37 +620,36 @@ class ThinFilmFilter:
         # incident medium refractive index (assume incident medium is air)
         ind['i_n'] = np.ones(np.shape(input_args['wv_range'])).astype(complex)
 
-        if units == 'deg':
-            # convert incident angle from degrees to radians
-            theta = theta * (np.pi / 180)
-
         # get measured substrate & thin film optical constant data
         for i, mat in enumerate(input_args['materials']):
             if mat == "H":
-                ind['f_n'][i, :] = input_args['h_mat']
+                ind['f_n'][i, :] = np.array(input_args['h_mat'])
             else:
-                ind['f_n'][i, :] = input_args['l_mat']
+                ind['f_n'][i, :] = np.array(input_args['l_mat'])
 
         # calculate the effective substrate refractive index (for abs. substrates)
-        sn_eff = ThinFilmFilter.sub_n_eff(ind['s_n'], theta)
+        sn_eff = ThinFilmFilter.sub_n_eff(ind['s_n'], input_args['theta'])
 
         # calculate the absorption coefficient for multiple reflections
         alpha = (4 * np.pi * np.imag(ind['s_n'])) / np.array(input_args['wv_range'])
         alpha = alpha.astype(complex)
 
         # Calculate the path length through the substrate
-        p_len = ThinFilmFilter.path_len(input_args['sub_thick'], ind['i_n'], sn_eff, theta)
+        p_len = ThinFilmFilter.path_len(input_args['sub_thick'], ind['i_n'],
+                                        sn_eff, input_args['theta'])
 
         # Fresnel Amplitudes & Intensities for incident medium / substrate interface
-        fr_bare = ThinFilmFilter.fresnel_bare(ind['i_n'], ind['s_n'], theta)
+        fr_bare = ThinFilmFilter.fresnel_bare(ind['i_n'], ind['s_n'], input_args['theta'])
 
         # reflection that originates from the incident medium
-        i_ref = ThinFilmFilter.incident_reflection(ind['i_n'], ind['s_n'],
-                                                        ind['f_n'], theta)
+        i_ref = ThinFilmFilter.incident_reflection(input_args['wv_range'],
+                            input_args['layer_stack'], ind['i_n'], ind['s_n'],
+                            ind['f_n'], input_args['theta'])
 
         # reflection that originates from the substrate medium
-        s_ref = ThinFilmFilter.substrate_reflection(ind['i_n'], ind['s_n'],
-                                                ind['f_n'], theta, sn_eff)
+        s_ref = ThinFilmFilter.substrate_reflection(input_args['wv_range'],
+                            input_args['layer_stack'], ind['i_n'], ind['s_n'],
+                            ind['f_n'], input_args['theta'], sn_eff)
 
         # calculate filter reflection
         spec['Rs'] = (i_ref['fresnel_film']['Rs']
@@ -674,14 +678,16 @@ class ThinFilmFilter:
         return spec
 
     @staticmethod
-    def reg_vec(opt_comp, big_t, big_r, wv_range):
+    def reg_vec(wv_range, opt_comp, transmission, reflection):
         """
         Calculates the optical computation regression vector.
 
         Parameters
         ----------
-        big_t (array):\n
-        big_r (array):\n
+        wv_range (array):\n
+        opt_comp (int):\n
+        transmission (array):\n
+        reflection (array):\n
 
         Returns
         ----------
@@ -692,34 +698,22 @@ class ThinFilmFilter:
         # initialize r_vec
         r_vec = []
 
-        # calculation based on 'opt_comp' design setting
-        if opt_comp == 0:
-            r_vec = big_t - big_r
-        elif opt_comp == 1:
-            r_vec = (big_t - big_r) / (big_t + big_r)
-        elif opt_comp == 2:
-            r_vec = big_t - .5 * big_r
-        elif opt_comp == 3:
-            r_vec = 2 * big_t - np.ones(np.shape(wv_range)[1])
-        elif opt_comp == 4:
-            r_vec = big_t
-        elif opt_comp == 5:
-            r_vec = big_t
-        elif opt_comp == 6:
-            r_vec = big_t - big_r
-        elif opt_comp == 7:
-            r_vec = (big_t - big_r) / (big_t + big_r)
-        elif opt_comp == 8:
-            r_vec = big_t - .5 * big_r
-        elif opt_comp == 9:
-            r_vec = 2 * big_t - np.ones(np.shape(wv_range)[1])
-        elif opt_comp == 10:
-            r_vec = big_t
-        elif opt_comp == 11:
-            r_vec = big_t
+        # calculation based on 'opt_comp' parameter
+        if opt_comp in (0, 6):
+            r_vec = transmission - reflection
+        elif opt_comp in (1, 7):
+            r_vec = ((transmission - reflection)
+                    / (transmission + reflection))
+        elif opt_comp in (2, 8):
+            r_vec = transmission - .5 * reflection
+        elif opt_comp in (3, 9):
+            r_vec = (2 * transmission
+                    - np.ones(np.shape(wv_range)[1]))
+        elif opt_comp in (4, 5, 10, 11):
+            r_vec = transmission
 
         # calculation result
-        return r_vec
+        return np.array(r_vec)
 
     @staticmethod
     def roc_curve(truth, detections, thresh):
