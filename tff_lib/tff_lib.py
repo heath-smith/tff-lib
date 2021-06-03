@@ -167,7 +167,7 @@ class ThinFilmFilter:
         if units == 'deg':
             # if input theta is 'deg', convert to radians
             theta = theta * (np.pi / 180)
-        """
+
         # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
         # data structure should be 'np.ndarray' and all shapes should match wv_range
         for i, arr in enumerate([i_n, s_n, f_n]):
@@ -192,7 +192,7 @@ class ThinFilmFilter:
                     raise ValueError("ValueError: Expected arrays of shape ("
                         + str(len(layer_stack)) + ', ' + str(np.shape(wv_range)[1])
                         + ") but received " + str(np.shape(arr)))
-        """
+
         # initialize dictionary to store admit_delta calculations
         admit_calc = {}
 
@@ -203,10 +203,16 @@ class ThinFilmFilter:
         admit_calc['f_e'] = np.square(f_n) # thin films
 
         # Calculation of the admittances of the incident and substrate media
-        admit_calc['ns_inc'] = np.sqrt(admit_calc['i_e'] - admit_calc['i_e'] * np.sin(theta)**2)
-        admit_calc['np_inc'] = admit_calc['i_e'] / admit_calc['ns_inc']
-        admit_calc['ns_sub'] = np.sqrt(admit_calc['s_e'] - admit_calc['i_e'] * np.sin(theta)**2)
-        admit_calc['np_sub'] = admit_calc['s_e'] / admit_calc['ns_sub']
+        admit_calc['ns_inc'] = np.sqrt(admit_calc['i_e']
+                            - admit_calc['i_e']
+                            * np.sin(theta)**2)
+        admit_calc['np_inc'] = (admit_calc['i_e']
+                            / admit_calc['ns_inc'])
+        admit_calc['ns_sub'] = np.sqrt(admit_calc['s_e']
+                            - admit_calc['i_e']
+                            * np.sin(theta)**2)
+        admit_calc['np_sub'] = (admit_calc['s_e']
+                            / admit_calc['ns_sub'])
 
         # Calculation of the admittances & phase factors
         # for each layer of the film stack
@@ -544,7 +550,8 @@ class ThinFilmFilter:
     def fil_spec(*args, **kwargs):
         #(units='deg'):
         """
-        Calculates the transmission and reflection spectra of a thin-film interference filter.
+        Calculates the transmission and reflection spectra of a
+        thin-film interference filter.
 
         Parameters
         ------------
@@ -740,6 +747,7 @@ class ThinFilmFilter:
         'Se' : Optimal sensitivity based upon optimal threshold,\n
         'Sp' : Optimal specificity based upon optimal threshold }
         """
+
         truth = np.array(truth)
         detections = np.array(detections)
         thresh = np.array(thresh)

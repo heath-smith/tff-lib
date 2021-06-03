@@ -41,7 +41,7 @@ class TestAdmitDelta(unittest.TestCase):
         """
 
         # write status to output stream
-        sys.stdout.write('\nSetting up test...')
+        sys.stdout.write('\nSetting up test class...')
 
         # static navigation to top-level package directory
         cls.package_dir = Path(__file__).resolve().parent.parent
@@ -89,10 +89,13 @@ class TestAdmitDelta(unittest.TestCase):
 
         # set thresholds for decimal comparison
         cls.r_tol = 1e-14
-        cls.a_tol = .1
+        cls.a_tol = .001
 
         # update output stream
         sys.stdout.write('SUCCESS')
+
+        sys.stdout.write('\nr_tol = ' + str(cls.r_tol)
+                        + ' | a_tol = ' + str(cls.a_tol))
 
     def test_admit_delta_nounits(self):
         """
