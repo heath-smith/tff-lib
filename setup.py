@@ -7,5 +7,5 @@ setup(name='tff_lib',
       author='Ryan Priore, Heath Smith',
       author_email='rpriore@thorlabs.com, hsmith@thorlabs.com',
       license='MIT',
-      packages=['tff_lib'],
+      packages=['tff_lib','tests','data'],
       zip_safe=False)
