@@ -86,16 +86,11 @@ class TestAdmitDelta(unittest.TestCase):
             else:
                 cls.test_f_n[i, :] = np.array(cls.test_cond['low_mat'])
 
-
         # set thresholds for decimal comparison
-        cls.r_tol = 1e-14
-        cls.a_tol = .001
+        cls.thresh = 12
 
         # update output stream
         sys.stdout.write('SUCCESS')
-
-        sys.stdout.write('\nr_tol = ' + str(cls.r_tol)
-                        + ' | a_tol = ' + str(cls.a_tol))
 
     def test_admit_delta_nounits(self):
         """
@@ -121,9 +116,9 @@ class TestAdmitDelta(unittest.TestCase):
         test_fails = 0
         for key in self.test_exp:
             try:
-                nptest.assert_allclose(test_ad_no_units[key],
+                nptest.assert_array_almost_equal(test_ad_no_units[key],
                     np.array(self.test_exp[key]).astype(complex),
-                    rtol=self.r_tol, atol=self.a_tol)
+                    decimal=self.thresh, verbose=True)
             except AssertionError as err:
                 test_fails += 1
                 sys.stderr.write('\nAssertion Error: ' + key + str(err))
@@ -149,9 +144,9 @@ class TestAdmitDelta(unittest.TestCase):
         test_fails = 0
         for key in self.test_exp:
             try:
-                nptest.assert_allclose(test_ad_units[key],
+                nptest.assert_array_almost_equal(test_ad_units[key],
                     np.array(self.test_exp[key]).astype(complex),
-                    rtol=self.r_tol, atol=self.a_tol)
+                    decimal=self.thresh, verbose=True)
             except AssertionError as err:
                 test_fails += 1
                 sys.stderr.write('\nAssertion Error: ' + key + str(err))
