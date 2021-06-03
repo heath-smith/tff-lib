@@ -74,7 +74,7 @@ class TestFresnelBare(unittest.TestCase):
         cls.test_theta = 0.0
 
         # set decimal threshold for array comparison
-        cls.thresh = 4
+        cls.thresh = 10
 
         # update output stream
         sys.stdout.write('SUCCESS')

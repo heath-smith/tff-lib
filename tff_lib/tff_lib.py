@@ -2,6 +2,10 @@
 The filters.py module contains common functions for calculating characteristics
 of optical filters and thin film stacks. The Filters class contains static methods
 that can be called without any class instance.
+
+To install via pip:
+
+>>> python -m pip install git+<url>
 """
 
 # import external packages
