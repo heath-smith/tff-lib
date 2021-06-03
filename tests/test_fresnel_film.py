@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-This module test_tff_lib.py contains the test suite for the
-ThinFilmFilter class and methods.
+This module contains the test suite for the
+fresnel_film() method.
 
 Execute tests from top-level package directory.
 
 Examples
 ---------
->>> python -m unittest tests/test_tff_lib.py
->>> python -m unittest tests.test_tff_lib.TestThinFilmFilter.test_fresnel_bare
+>>> python -m unittest tests.test_fresnel_film
+>>> python -m unittest tests.test_fresnel_film.<method>
 """
 
 # import external packages
@@ -27,9 +27,13 @@ import warnings
 from tff_lib.tff_lib import ThinFilmFilter as tff
 from tff_lib.exceptions import UnitError
 
-class TestThinFilmFilter(unittest.TestCase):
+class TestFresnelFilm(unittest.TestCase):
+    """
+    Test class for fresnel_film() method.
+    """
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """
         Set up the test environment. All tests here will use data from the
         'test_input.json' file in the 'data' folder. Note that this is not
@@ -37,25 +41,42 @@ class TestThinFilmFilter(unittest.TestCase):
         """
 
         # write status to output stream
-        sys.stdout.write('\nSetting up test...')
+        sys.stdout.write('\nSetting up test class...')
 
         # static navigation to top-level package directory
-        self.package_dir = Path(__file__).resolve().parent.parent
+        cls.package_dir = Path(__file__).resolve().parent.parent
 
         # define directory with data files
-        self.data_dir = os.path.join(self.package_dir, 'data')
+        cls.data_dir = os.path.join(cls.package_dir, 'data')
 
         # define input/output file names
-        self.input_file = os.path.join(self.data_dir, 'test_input.json')
-        self.output_file = os.path.join(self.data_dir, 'test_expected.json')
+        cls.input_file = os.path.join(cls.data_dir, 'test_input.json')
+        cls.output_file = os.path.join(cls.data_dir, 'test_expected.json')
 
         # read in json file with test input data
-        with open(self.input_file) as in_file:
-            self.input_data = json.load(in_file)
+        with open(cls.input_file) as in_file:
+            cls.input_data = json.load(in_file)
 
         # read in json file with test expected output data
-        with open(self.output_file) as out_file:
-            self.output_data = json.load(out_file)
+        with open(cls.output_file) as out_file:
+            cls.output_data = json.load(out_file)
+
+        # initialize test input data
+        cls.test_admit_deltas = cls.output_data['admit_delta_expected']
+        cls.test_char_matrix = cls.output_data['c_mat_expected']
+
+        # initialize fresnel_film() expected output
+        cls.ff_expected = cls.output_data['fresnel_film_expected']
+
+        # COMPLEX CONJUGATE - VERIFY THESE SIGNS WITH RYAN
+        cls.ff_expected['ts'] = np.conjugate(np.array(cls.ff_expected['ts']).astype(complex))
+        cls.ff_expected['tp'] = np.conjugate(np.array(cls.ff_expected['tp']).astype(complex))
+        cls.ff_expected['rs'] = np.conjugate(np.array(cls.ff_expected['rs']).astype(complex))
+        cls.ff_expected['rp'] = np.conjugate(np.array(cls.ff_expected['rp']).astype(complex))
+
+        # thresholds for floating point comparison
+        cls.r_tol = 1e-14
+        cls.a_tol = .000000001
 
         # update output stream
         sys.stdout.write('SUCCESS')
@@ -68,29 +89,17 @@ class TestThinFilmFilter(unittest.TestCase):
 
         sys.stdout.write('\nTesting fresnel_film()... ')
 
-        # new instance of MOE class
-        test_moe_ff = MOE(self.data_path)
-
-        # initialize test input data
-        test_admit_delta_out = self.expected_data['admit_delta_expected']
-        test_cmat_out = self.expected_data['c_mat_expected']
-
-        # call fresnel_film() and capture output
-        test_ff_output = test_moe_ff.fresnel_film(test_admit_delta_out, test_cmat_out)
-
-        # initialize fresnel_film() expected output
-        ff_expected = self.expected_data['fresnel_film_expected']
-
-        # threshold for floating point comparison
-        thresh = 10
+        # test fresnel_film() method
+        test_ff_output = tff.fresnel_film(self.test_admit_deltas,
+                                        self.test_char_matrix)
 
         # assert test output is equal to expected values
         test_fails = 0
         for key in test_ff_output:
             try:
                 nptest.assert_allclose(np.array(test_ff_output[key]).astype(complex),
-                    np.array(ff_expected[key]).astype(complex),
-                    rtol=1e-14, atol=5)
+                    np.array(self.ff_expected[key]).astype(complex),
+                    rtol=self.r_tol, atol=self.a_tol)
             except AssertionError as err:
                 test_fails += 1
                 sys.stderr.write('\nAssertion Error: ' + key + str(err))
@@ -98,9 +107,10 @@ class TestThinFilmFilter(unittest.TestCase):
         if test_fails == 0:
             # write 'PASSED' to output stream if
             # all assertions pass
-            sys.stdout.write('PASSED | rtol=1e-14, atol=5')
+            sys.stdout.write('PASSED')
 
-    def tearDown(self):
+    @classmethod
+    def tearDown(cls):
 
         sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
 
