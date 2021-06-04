@@ -287,15 +287,18 @@ class ThinFilmFilter:
         """
 
         # validate input arguments
-        #for arr in [ns_film, np_film, delta]:
-        #    if arr.dtype != 'float64':
-        #        # raise TypeError if any array is not complex
-        #        raise TypeError("Incorrect type: expected 'float64' type but received "
-        #                         + str(arr.dtype))
-        #    if not isinstance(arr, np.ndarray):
-        #        # raise TypeError if not a numpy ndarray
-        #        raise TypeError("Bad Data Structure: Expected 'numpy.ndarray' but received "
-        #                        + type(arr))
+        for arr in [ns_film, np_film, delta]:
+            # if np.ndarray's, check the data type
+            if isinstance(arr, np.ndarray):
+                if arr.dtype != 'float64':
+                    # raise TypeError if any array is not complex
+                    raise TypeError("Expected 'float64' type but received "
+                                    + str(arr.dtype))
+            # if not instance of np.ndarray, raise exception
+            if not isinstance(arr, np.ndarray):
+                # raise TypeError if not a numpy ndarray
+                raise TypeError("Expected 'numpy.ndarray' but received "
+                                + type(arr))
 
         # Calculation of the characteristic matrix elements
         elements = {'s11': np.cos(delta),
@@ -318,7 +321,7 @@ class ThinFilmFilter:
                     'P22':np.ones((1, len(elements['p11'][0, :]))).astype(complex)}
 
         # Multiply all of the individual layer characteristic matrices together
-        for i in range(len(elements['s11'][:, 0])-8):
+        for i in range(np.shape(elements['s11'])[0]):
             char_mat['S11'] = (char_mat['S11'] * elements['s11'][i, :]
                             + char_mat['S12'] * elements['s21'][i, :])
             char_mat['S12'] = (char_mat['S11'] * elements['s12'][i, :]
@@ -328,7 +331,7 @@ class ThinFilmFilter:
             char_mat['S22'] = (char_mat['S21'] * elements['s12'][i, :]
                             + char_mat['S22'] * elements['s22'][i, :])
 
-        for i in range(len(elements['p11'][:, 0])):
+        for i in range(np.shape(elements['p11'])[0]):
             char_mat['P11'] = (char_mat['P11'] * elements['p11'][i, :]
                             + char_mat['P12'] * elements['p21'][i, :])
             char_mat['P12'] = (char_mat['P11'] * elements['p12'][i, :]

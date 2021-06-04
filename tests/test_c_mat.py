@@ -138,6 +138,42 @@ class TestCMat(unittest.TestCase):
         # all assertions pass
         sys.stdout.write('PASSED')
 
+    def test_c_mat_wrong_struct(self):
+        """
+        Test c_mat() using lists instead of numpy.ndarray's.
+        """
+
+        #---------- test c_mat() with incorrect data structures ------------#
+        sys.stdout.write('\nTesting c_mat_wrong_struct()... ')
+        nsfilm_wrong_type = self.test_nsfilm.tolist()
+        npfilm_wrong_type = self.test_npfilm.tolist()
+        delta_wrong_type = self.test_delta.tolist()
+
+        # assert that a TypeError exception is raised
+        # wrong type ns_film
+        with self.assertRaises(TypeError):
+            tff.c_mat(nsfilm_wrong_type,
+                    self.test_npfilm,
+                    self.test_delta)
+        # assert that a TypeError exception is raised
+        # wrong type np_film
+        with self.assertRaises(TypeError):
+            tff.c_mat(self.test_nsfilm,
+                    npfilm_wrong_type,
+                    self.test_delta)
+        # assert that a TypeError exception is raised
+        # wrong type delta
+        with self.assertRaises(TypeError):
+            tff.c_mat(self.test_nsfilm,
+                    self.test_npfilm,
+                    delta_wrong_type)
+
+        # write 'PASSED' to output stream if
+        # all assertions pass
+        sys.stdout.write('PASSED')
+
+    # NEED TO TEST INCORRECT ARRAY SHAPES!!!!!!!!!
+
     @classmethod
     def tearDownClass(cls):
 

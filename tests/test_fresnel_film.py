@@ -75,8 +75,7 @@ class TestFresnelFilm(unittest.TestCase):
         cls.ff_expected['rp'] = np.conjugate(np.array(cls.ff_expected['rp']).astype(complex))
 
         # thresholds for floating point comparison
-        cls.r_tol = 1e-14
-        cls.a_tol = .000000001
+        cls.thresh = 14
 
         # update output stream
         sys.stdout.write('SUCCESS')
@@ -97,9 +96,9 @@ class TestFresnelFilm(unittest.TestCase):
         test_fails = 0
         for key in test_ff_output:
             try:
-                nptest.assert_allclose(np.array(test_ff_output[key]).astype(complex),
+                nptest.assert_array_almost_equal(np.array(test_ff_output[key]).astype(complex),
                     np.array(self.ff_expected[key]).astype(complex),
-                    rtol=self.r_tol, atol=self.a_tol)
+                    decimal=self.thresh, verbose=True)
             except AssertionError as err:
                 test_fails += 1
                 sys.stderr.write('\nAssertion Error: ' + key + str(err))
