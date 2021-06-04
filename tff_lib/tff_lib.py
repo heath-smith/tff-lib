@@ -106,13 +106,14 @@ class ThinFilmFilter:
                 'Rp':big_r_p, 'rs':r_s, 'rp':r_p}
 
     @staticmethod
-    def admit_delta(wv_range, layer_stack, theta, i_n, s_n, f_n, units='rad'):
+    def admit_delta(*args, **kwargs):
         """
         (static method) Calculates filter admittances of incident, substrate,
         and film as well as the phase (delta) upon reflection for each film.
 
         Parameters
         -------------
+        *args:\n
         wv_range (array): wavelength values in nanometers.\n
         layer_stack (array): thickness values of each filter layer in nanometers.\n
         theta (float): angle of incidence of radiation\n
@@ -120,9 +121,9 @@ class ThinFilmFilter:
         s_n (array): complex refractive index of substrate (s_n = n + i*k)\n
         f_n (array): complex refractive index of thin films (f_n = n + i*k)
 
-        optional:\n
+        **kwargs: (optional)\n
         units (str): units of measure for angle theta. Valid options are
-                    'rad' and 'deg'. Default value is 'deg'.
+                    'rad' and 'deg'. Default value is 'rad'.
 
         Returns
         --------------
@@ -158,23 +159,47 @@ class ThinFilmFilter:
 
         """
 
+        # dictionary to store input args
+        input_args = {'wv_range':[],
+                    'layer_stack':[],
+                    'theta':[],
+                    'i_n':[],
+                    's_n':[],
+                    'f_n':[]}
+
+        # check if args list is correct length
+        if len(args) == 6:
+            # iterate input_args keys
+            for i, k in enumerate(input_args):
+                # define input_args key/value pairs
+                input_args[k] = args[i]
+        elif len(args) != 6:
+            # raise ValueError exception if args len incorrect
+            if len(args) > 6:
+                raise ValueError("Too many input arguments. Expected 8 but received "
+                                + str(len(args)))
+            if len(args) < 6:
+                raise ValueError("Not enough input arguments. Expected 8 but received "
+                                + str(len(args)))
+
         # check if 'units' param is valid
-        if units not in ('rad', 'deg'):
-            # raise a custom 'UnitError' if 'units' not valid
-            raise UnitError(units, "Invalid Units. Valid inputs are 'rad' or 'deg'.")
+        if 'units' in kwargs:
+            if kwargs['units'] not in ('rad', 'deg'):
+                # raise a custom 'UnitError' if 'units' not valid
+                raise UnitError(kwargs['units'], "Invalid Units. Valid inputs are 'rad' or 'deg'.")
 
-        if not isinstance(units, str):
-            # raise a TypeError if 'units' is not a string
-            raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
-                            + type(units))
+            if not isinstance(kwargs['units'], str):
+                # raise a TypeError if 'units' is not a string
+                raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
+                                + type(kwargs['units']))
 
-        if units == 'deg':
-            # if input theta is 'deg', convert to radians
-            theta = theta * (np.pi / 180)
+            if kwargs['units'] == 'deg':
+                # if input theta is 'deg', convert to radians
+                input_args['theta'] = input_args['theta'] * (np.pi / 180)
 
         # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
         # data structure should be 'np.ndarray' and all shapes should match wv_range
-        for i, arr in enumerate([i_n, s_n, f_n]):
+        for i, arr in enumerate([input_args['i_n'], input_args['s_n'], input_args['f_n']]):
             if arr.dtype != 'complex128' or arr.dtype != 'complex':
                 # raise TypeError if any array is not complex
                 raise TypeError("Incorrect type: expected 'complex' type but received "
@@ -186,15 +211,17 @@ class ThinFilmFilter:
 
             # validate that shapes of i_n, s_n are equal to the wv_range shape
             if i < 2:
-                if np.shape(arr) != np.shape(wv_range):
+                if np.shape(arr) != np.shape(input_args['wv_range']):
                     raise ValueError("ValueError: Expected arrays of shape "
-                                    + str(np.shape(wv_range)) + " but received "
+                                    + str(np.shape(input_args['wv_range'])) + " but received "
                                     + str(np.shape(arr)))
             # validate f_n shape is equal to LEN(layer_stack) X LEN(wl_range)
             if i == 2:
-                if np.shape(arr) != (len(layer_stack),np.shape(wv_range)[1]):
+                if np.shape(arr) != (len(input_args['layer_stack']),
+                                np.shape(input_args['wv_range'])[1]):
                     raise ValueError("ValueError: Expected arrays of shape ("
-                        + str(len(layer_stack)) + ', ' + str(np.shape(wv_range)[1])
+                        + str(len(input_args['layer_stack'])) + ', '
+                        + str(np.shape(input_args['wv_range'])[1])
                         + ") but received " + str(np.shape(arr)))
 
         # initialize dictionary to store admit_delta calculations
@@ -202,43 +229,44 @@ class ThinFilmFilter:
 
         # Calculation of the complex dielectric constants from measured
         # optical constants
-        admit_calc['i_e'] = np.square(i_n) # incident medium (air)
-        admit_calc['s_e'] = np.square(s_n) # substrate
-        admit_calc['f_e'] = np.square(f_n) # thin films
+        admit_calc['i_e'] = np.square(input_args['i_n']) # incident medium (air)
+        admit_calc['s_e'] = np.square(input_args['s_n']) # substrate
+        admit_calc['f_e'] = np.square(input_args['f_n']) # thin films
 
         # Calculation of the admittances of the incident and substrate media
         admit_calc['ns_inc'] = np.sqrt(admit_calc['i_e']
                             - admit_calc['i_e']
-                            * np.sin(theta)**2)
+                            * np.sin(input_args['theta'])**2)
         admit_calc['np_inc'] = (admit_calc['i_e']
                             / admit_calc['ns_inc'])
         admit_calc['ns_sub'] = np.sqrt(admit_calc['s_e']
                             - admit_calc['i_e']
-                            * np.sin(theta)**2)
+                            * np.sin(input_args['theta'])**2)
         admit_calc['np_sub'] = (admit_calc['s_e']
                             / admit_calc['ns_sub'])
 
         # Calculation of the admittances & phase factors
         # for each layer of the film stack
-        admit_calc['ns_film'] = np.ones((len(layer_stack),
-                    np.shape(wv_range)[1])).astype(complex)
-        admit_calc['np_film'] = np.ones((len(layer_stack),
-                    np.shape(wv_range)[1])).astype(complex)
-        admit_calc['delta'] = np.ones((len(layer_stack),
-                    np.shape(wv_range)[1])).astype(complex)
+        admit_calc['ns_film'] = np.ones((len(input_args['layer_stack']),
+                    np.shape(input_args['wv_range'])[1])).astype(complex)
+        admit_calc['np_film'] = np.ones((len(input_args['layer_stack']),
+                    np.shape(input_args['wv_range'])[1])).astype(complex)
+        admit_calc['delta'] = np.ones((len(input_args['layer_stack']),
+                    np.shape(input_args['wv_range'])[1])).astype(complex)
 
         # enter loop if the substrate has thin film layers
-        if len(f_n[:, 0]) >= 1:
-            for i, layer in enumerate(layer_stack):
+        if len(input_args['f_n'][:, 0]) >= 1:
+            for i, layer in enumerate(input_args['layer_stack']):
                 admit_calc['ns_film'][i, :] = np.sqrt(admit_calc['f_e'][i, :]
-                                        - admit_calc['i_e'] * np.sin(theta)**2)
+                                        - admit_calc['i_e']
+                                        * np.sin(input_args['theta'])**2)
                 admit_calc['np_film'][i, :] = (admit_calc['f_e'][i, :]
                                         / admit_calc['ns_film'][i, :])
                 admit_calc['delta'][i, :] = ((2 * np.pi * layer
                             * np.sqrt(admit_calc['f_e'][i, :]
                             - admit_calc['i_e']
-                            * np.sin(theta)**2))
-                            / np.array(wv_range))
+                            * np.sin(input_args['theta'])**2))
+                            / np.array(input_args['wv_range']))
 
         admit_calc['ns_film'] = np.flipud(admit_calc['ns_film'])
         admit_calc['np_film'] = np.flipud(admit_calc['np_film'])

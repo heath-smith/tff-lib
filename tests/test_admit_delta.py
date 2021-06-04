@@ -128,16 +128,16 @@ class TestAdmitDelta(unittest.TestCase):
             # all assertions pass
             sys.stdout.write('PASSED')
 
-    def test_admit_delta_rad(self):
+    def test_admit_delta_deg(self):
         """
-        Test admit_delta() with 'rad' as units param.
+        Test admit_delta() with 'deg' as units param.
         """
 
         #-------- test admit_delta() with units = 'rad' ---------#
-        sys.stdout.write('\nTesting admit_delta_rad(units="rad")... ')
+        sys.stdout.write('\nTesting admit_delta_deg()... ')
         test_ad_units = tff.admit_delta(self.test_wv_range, self.test_layers,
                                 self.test_theta, self.test_i_n, self.test_s_n,
-                                self.test_f_n, units='rad')
+                                self.test_f_n, units='deg')
 
         # assert equality in test results vs. expected results
         # use numpy testing functions for array comparison
@@ -223,6 +223,28 @@ class TestAdmitDelta(unittest.TestCase):
 
         # reset warnings
         warnings.filterwarnings("default")
+
+    def test_admit_delta_wrong_args(self):
+        """
+        Test admit_delta() with incorrect number of input args.
+        """
+
+        sys.stdout.write('\nTesting admit_delta_wrong_args()... ')
+        # assert that a ValueError exception is raised
+        # not enough args
+        with self.assertRaises(ValueError):
+            tff.admit_delta(self.test_wv_range, self.test_layers,
+                            self.test_theta, self.test_f_n)
+        # assert that a ValueError exception is raised
+        # too many args
+        with self.assertRaises(ValueError):
+            tff.admit_delta(self.test_wv_range, self.test_layers,
+                            self.test_theta, 0, 0,
+                            self.test_s_n, self.test_f_n)
+
+        # write 'PASSED' to output stream if
+        # all assertions pass
+        sys.stdout.write('PASSED')
 
     @classmethod
     def tearDownClass(cls):
