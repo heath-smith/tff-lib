@@ -70,7 +70,7 @@ class TestCMat(unittest.TestCase):
         cls.cmat_expected = cls.output_data['c_mat_expected']
 
         # floating point comparison threshold
-        cls.thresh = 1
+        cls.thresh = 12
 
         # update output stream
         sys.stdout.write('SUCCESS')
@@ -172,7 +172,9 @@ class TestCMat(unittest.TestCase):
         # all assertions pass
         sys.stdout.write('PASSED')
 
-    # NEED TO TEST INCORRECT ARRAY SHAPES!!!!!!!!!
+    #-----------------------------------------------------#
+    #------- NEED TO TEST INCORRECT ARRAY SHAPES ---------#
+    #-----------------------------------------------------#
 
     @classmethod
     def tearDownClass(cls):

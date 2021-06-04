@@ -311,35 +311,35 @@ class ThinFilmFilter:
                     'p21': (-1j * np_film) * np.sin(delta)}
 
         # Initialize the characteristic matrices
-        char_mat = {'S11':np.ones((1, len(elements['s11'][0, :]))).astype(complex),
-                    'S12':np.zeros((1, len(elements['s11'][0, :]))).astype(complex),
-                    'S21':np.zeros((1, len(elements['s11'][0, :]))).astype(complex),
-                    'S22':np.ones((1, len(elements['s11'][0, :]))).astype(complex),
-                    'P11':np.ones((1, len(elements['p11'][0, :]))).astype(complex),
-                    'P12':np.zeros((1, len(elements['p11'][0, :]))).astype(complex),
-                    'P21':np.zeros((1, len(elements['p11'][0, :]))).astype(complex),
-                    'P22':np.ones((1, len(elements['p11'][0, :]))).astype(complex)}
+        char_mat = {'S11':np.ones((1, np.shape(elements['s11'])[1])).astype(complex),
+                    'S12':np.zeros((1, np.shape(elements['s11'])[1])).astype(complex),
+                    'S21':np.zeros((1, np.shape(elements['s11'])[1])).astype(complex),
+                    'S22':np.ones((1, np.shape(elements['s11'])[1])).astype(complex),
+                    'P11':np.ones((1, np.shape(elements['p11'])[1])).astype(complex),
+                    'P12':np.zeros((1, np.shape(elements['p11'])[1])).astype(complex),
+                    'P21':np.zeros((1, np.shape(elements['p11'])[1])).astype(complex),
+                    'P22':np.ones((1, np.shape(elements['p11'])[1])).astype(complex)}
 
         # Multiply all of the individual layer characteristic matrices together
         for i in range(np.shape(elements['s11'])[0]):
-            char_mat['S11'] = (char_mat['S11'] * elements['s11'][i, :]
-                            + char_mat['S12'] * elements['s21'][i, :])
-            char_mat['S12'] = (char_mat['S11'] * elements['s12'][i, :]
-                            + char_mat['S12'] * elements['s22'][i, :])
-            char_mat['S21'] = (char_mat['S21'] * elements['s11'][i, :]
-                            + char_mat['S22'] * elements['s21'][i, :])
-            char_mat['S22'] = (char_mat['S21'] * elements['s12'][i, :]
-                            + char_mat['S22'] * elements['s22'][i, :])
+            A = char_mat['S11']
+            B = char_mat['S12']
+            C = char_mat['S21']
+            D = char_mat['S22']
+            char_mat['S11'] = (A * elements['s11'][i, :] + B * elements['s21'][i, :])
+            char_mat['S12'] = (A * elements['s12'][i, :] + B * elements['s22'][i, :])
+            char_mat['S21'] = (C * elements['s11'][i, :] + D * elements['s21'][i, :])
+            char_mat['S22'] = (C * elements['s12'][i, :] + D * elements['s22'][i, :])
 
         for i in range(np.shape(elements['p11'])[0]):
-            char_mat['P11'] = (char_mat['P11'] * elements['p11'][i, :]
-                            + char_mat['P12'] * elements['p21'][i, :])
-            char_mat['P12'] = (char_mat['P11'] * elements['p12'][i, :]
-                            + char_mat['P12'] * elements['p22'][i, :])
-            char_mat['P21'] = (char_mat['P21'] * elements['p11'][i, :]
-                            + char_mat['P22'] * elements['p21'][i, :])
-            char_mat['P22'] = (char_mat['P21'] * elements['p12'][i, :]
-                            + char_mat['P22'] * elements['p22'][i, :])
+            A = char_mat['P11']
+            B = char_mat['P12']
+            C = char_mat['P21']
+            D = char_mat['P22']
+            char_mat['P11'] = (A * elements['p11'][i, :] + B * elements['p21'][i, :])
+            char_mat['P12'] = (A * elements['p12'][i, :] + B * elements['p22'][i, :])
+            char_mat['P21'] = (C * elements['p11'][i, :] + D * elements['p21'][i, :])
+            char_mat['P22'] = (C * elements['p12'][i, :] + D * elements['p22'][i, :])
 
         return char_mat
 
@@ -453,7 +453,7 @@ class ThinFilmFilter:
         inside2 = np.array(inside2, dtype=np.float64)
         sn_eff = np.sqrt(inside2)
 
-        return sn_eff
+        return np.array(sn_eff).astype(complex)
 
     @staticmethod
     def path_len(sub_thick, i_n, sn_eff, theta, units='rad'):
@@ -506,9 +506,10 @@ class ThinFilmFilter:
         inc_ref['admit_delta'] = ThinFilmFilter.admit_delta(wv_range, layers, theta, i_n, s_n, f_n)
 
         # calculate the characteristic matrix
-        inc_ref['c_mat'] = ThinFilmFilter.c_mat(inc_ref['admit_delta']['ns_film'],
-                                                inc_ref['admit_delta']['np_film'],
-                                                inc_ref['admit_delta']['delta'])
+        inc_ref['c_mat'] = ThinFilmFilter.c_mat(
+                            np.array(inc_ref['admit_delta']['ns_film']).astype('float64'),
+                            np.array(inc_ref['admit_delta']['np_film']).astype('float64'),
+                            np.array(inc_ref['admit_delta']['delta']).astype('float64'))
 
         # calculate fresnel intensities and amplitudes
         inc_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(inc_ref['admit_delta'],
@@ -543,9 +544,10 @@ class ThinFilmFilter:
                                                 sn_eff, i_n, np.flipud(f_n))
 
         # calculate characteristic matrix
-        sub_ref['c_mat'] = ThinFilmFilter.c_mat(sub_ref['admit_delta']['ns_film'],
-                                                sub_ref['admit_delta']['np_film'],
-                                                sub_ref['admit_delta']['delta'])
+        sub_ref['c_mat'] = ThinFilmFilter.c_mat(
+                            np.array(sub_ref['admit_delta']['ns_film']).astype('float64'),
+                            np.array(sub_ref['admit_delta']['np_film']).astype('float64'),
+                            np.array(sub_ref['admit_delta']['delta']).astype('float64'))
 
         # calculate fresnel intensities & amplitudes
         sub_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(sub_ref['admit_delta'],
@@ -637,9 +639,9 @@ class ThinFilmFilter:
         # get measured substrate & thin film optical constant data
         for i, mat in enumerate(input_args['materials']):
             if mat == "H":
-                ind['f_n'][i, :] = np.array(input_args['h_mat'])
+                ind['f_n'][i, :] = np.array(input_args['h_mat']).astype(complex)
             else:
-                ind['f_n'][i, :] = np.array(input_args['l_mat'])
+                ind['f_n'][i, :] = np.array(input_args['l_mat']).astype(complex)
 
         # calculate the effective substrate refractive index (for abs. substrates)
         sn_eff = ThinFilmFilter.sub_n_eff(ind['s_n'], input_args['theta'])
