@@ -159,7 +159,6 @@ class ThinFilmFilter:
         >>> admittance = admit_delta(wv_range, layer_stack, i_n, s_n, f_n, theta, units='deg')
         >>> ns_inc = admittance['ns_inc']
         >>> d = admittance['delta']
-
         """
 
         # dictionary to store input args
@@ -860,10 +859,10 @@ class ThinFilmFilter:
 
         Parameters
         -----------
-        truth (): logical index or binary values indicating class membership
-                    detections - measured results (or prediction scores) from sensor\n
-        detections (): measured results (or prediction scores) from sensor\n
-        thresh (): array of user specified threshold values for computing the ROC curve
+        truth (array): logical index or binary values indicating class membership
+                detections - measured results (or prediction scores) from sensor\n
+        detections (array): measured results (or prediction scores) from sensor\n
+        thresh (array): array of user specified threshold values for computing the ROC curve
 
         Returns
         ---------
