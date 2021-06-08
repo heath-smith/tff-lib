@@ -111,9 +111,9 @@ class TestCMat(unittest.TestCase):
 
         #---------- test c_mat() with incorrect data types ------------#
         sys.stdout.write('\nTesting c_mat_wrong_types()... ')
-        nsfilm_wrong_type = np.array(self.test_nsfilm).astype(complex)
-        npfilm_wrong_type = np.array(self.test_npfilm).astype(complex)
-        delta_wrong_type = np.array(self.test_delta).astype(complex)
+        nsfilm_wrong_type = np.array(self.test_nsfilm).astype(int)
+        npfilm_wrong_type = np.array(self.test_npfilm).astype(int)
+        delta_wrong_type = np.array(self.test_delta).astype(int)
 
         # assert that a TypeError exception is raised
         # wrong type ns_film
