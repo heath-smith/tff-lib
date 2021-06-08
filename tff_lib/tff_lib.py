@@ -28,9 +28,12 @@ class ThinFilmFilter:
 
         Parameters
         -----------
+        *args:\n
         i_n (array): complex refractive index on incident medium (i_n = x+y*j)\n
         s_n (array): complex refractive index of substrate (s_n = x+y*j) \n
-        theta (float): angle of incidence of radiation.\n
+        theta (float): angle of incidence of radiation.
+
+        **kwargs: (optional)\n
         units (str): 'deg' or 'rad'. Default is 'rad' if not specified.
 
         Returns
@@ -277,7 +280,6 @@ class ThinFilmFilter:
         'np_film' (array): p-polarized admittance of the film stack layers.\n
         'delta' (array): phase upon reflection for each film.
 
-
         Returns
         ------------
         dictionary object of characteristic matrix\n
@@ -452,6 +454,12 @@ class ThinFilmFilter:
 
         Parameters
         -----------
+        *args:\n
+        s_n (array):\n
+        theta (float):
+
+        **kwargs: (optional)\n
+        units (str):
 
         Returns
         ----------
@@ -480,9 +488,12 @@ class ThinFilmFilter:
 
         Parameters
         -------------
-        sub_thick
-        theta
-        units
+        *args:\n
+        sub_thick (float):\n
+        theta (float):
+
+        **kwargs: (optional)\n
+        units (str):
 
         Returns
         ------------
@@ -507,11 +518,16 @@ class ThinFilmFilter:
 
         Parameters
         -----------
+        *args:\n
+
+        **kwargs: (optional)\n
+        units (str):
 
         Returns
         -----------
-
-
+        dictionary object of transmission and reflection value arrays\n
+        {key : result array}\n
+        { }
         """
 
         # dictionary to store input args
@@ -577,10 +593,22 @@ class ThinFilmFilter:
 
         Parameters
         ----------
+        *args:\n
+
+        **kwargs: (optional)\n
+
 
         Returns
         ----------
+        nested dictionary object with admit_delta() results and
+        the results from c_mat().\n
+        {key : result array}\n
+        { }
 
+        See Also
+        ----------
+        admit_delta()
+        c_mat()
         """
 
         # dictionary to store input args
@@ -680,6 +708,10 @@ class ThinFilmFilter:
 
         See Also
         -------------
+        sub_n_eff(*args, **kwargs)
+        path_len(*args, **kwargs)
+        incident_reflection(*args, **kwargs)
+        substrate_reflection(*args, **kwargs)
         """
 
         # dictionary to store input args
@@ -693,20 +725,20 @@ class ThinFilmFilter:
                     'sub_thick':None}
 
         # check if args list is correct length
+        # raise ValueError exception if args len incorrect
+        if len(args) > 8:
+            raise ValueError("Too many input arguments. Expected 8 but received "
+                            + str(len(args)))
+        if len(args) < 8:
+            raise ValueError("Not enough input arguments. Expected 8 but received "
+                            + str(len(args)))
         if len(args) == 8:
             # iterate input_args keys
             for i, k in enumerate(input_args):
                 # define input_args key/value pairs
                 input_args[k] = args[i]
-        elif len(args) != 8:
-            # raise ValueError exception if args len incorrect
-            if len(args) > 8:
-                raise ValueError("Too many input arguments. Expected 8 but received "
-                                + str(len(args)))
-            if len(args) < 8:
-                raise ValueError("Not enough input arguments. Expected 8 but received "
-                                + str(len(args)))
 
+        # parse kwargs dictionary
         if kwargs:
             if kwargs['units'] == 'deg':
                 # convert incident angle from degrees to radians
@@ -798,7 +830,6 @@ class ThinFilmFilter:
         Returns
         ----------
         (array) computed regression vector
-
         """
 
         # initialize r_vec
