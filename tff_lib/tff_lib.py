@@ -309,9 +309,10 @@ class ThinFilmFilter:
         for arr in [ns_film, np_film, delta]:
             # if np.ndarray's, check the data type
             if isinstance(arr, np.ndarray):
-                if arr.dtype != 'float64':
+                if arr.dtype not in ('float64', 'complex', 'complex128'):
                     # raise TypeError if any array is not complex
-                    raise TypeError("Expected 'float64' type but received "
+                    raise TypeError("Expected 'float64', 'complex', or 'complex128'"
+                                    + " type but received "
                                     + str(arr.dtype))
             # if not instance of np.ndarray, raise exception
             if not isinstance(arr, np.ndarray):
@@ -575,9 +576,9 @@ class ThinFilmFilter:
 
         # calculate the characteristic matrix
         inc_ref['c_mat'] = ThinFilmFilter.c_mat(
-                            np.array(inc_ref['admit_delta']['ns_film']).astype('float64'),
-                            np.array(inc_ref['admit_delta']['np_film']).astype('float64'),
-                            np.array(inc_ref['admit_delta']['delta']).astype('float64'))
+                            np.array(inc_ref['admit_delta']['ns_film']),
+                            np.array(inc_ref['admit_delta']['np_film']),
+                            np.array(inc_ref['admit_delta']['delta']))
 
         # calculate fresnel intensities and amplitudes
         inc_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(inc_ref['admit_delta'],
@@ -662,9 +663,9 @@ class ThinFilmFilter:
 
         # calculate characteristic matrix
         sub_ref['c_mat'] = ThinFilmFilter.c_mat(
-                            np.array(sub_ref['admit_delta']['ns_film']).astype('float64'),
-                            np.array(sub_ref['admit_delta']['np_film']).astype('float64'),
-                            np.array(sub_ref['admit_delta']['delta']).astype('float64'))
+                            np.array(sub_ref['admit_delta']['ns_film']),
+                            np.array(sub_ref['admit_delta']['np_film']),
+                            np.array(sub_ref['admit_delta']['delta']))
 
         # calculate fresnel intensities & amplitudes
         sub_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(sub_ref['admit_delta'],
