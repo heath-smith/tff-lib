@@ -27,9 +27,14 @@ import warnings
 from tff_lib.tff_lib import ThinFilmFilter as tff
 from tff_lib.exceptions import UnitError
 
-class TestThinFilmFilter(unittest.TestCase):
+class TestRocCurve(unittest.TestCase):
+    """
+    Test class for roc_curve() method from Thin Film Filter
+    Library.
+    """
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """
         Set up the test environment. All tests here will use data from the
         'test_input.json' file in the 'data' folder. Note that this is not
@@ -40,71 +45,76 @@ class TestThinFilmFilter(unittest.TestCase):
         sys.stdout.write('\nSetting up test...')
 
         # static navigation to top-level package directory
-        self.package_dir = Path(__file__).resolve().parent.parent
+        cls.package_dir = Path(__file__).resolve().parent.parent
 
         # define directory with data files
-        self.data_dir = os.path.join(self.package_dir, 'data')
+        cls.data_dir = os.path.join(cls.package_dir, 'data')
 
         # define input/output file names
-        self.input_file = os.path.join(self.data_dir, 'test_input.json')
-        self.output_file = os.path.join(self.data_dir, 'test_expected.json')
+        cls.input_file = os.path.join(cls.data_dir, 'test_input.json')
+        cls.output_file = os.path.join(cls.data_dir, 'test_expected.json')
 
         # read in json file with test input data
-        with open(self.input_file) as in_file:
-            self.input_data = json.load(in_file)
+        with open(cls.input_file) as in_file:
+            cls.input_data = json.load(in_file)
 
         # read in json file with test expected output data
-        with open(self.output_file) as out_file:
-            self.output_data = json.load(out_file)
+        with open(cls.output_file) as out_file:
+            cls.output_data = json.load(out_file)
+
+        # define test input parameters
+        cls.test_truth = np.array(cls.output_data['roc_curve_input']['truth'])
+        cls.test_detections = np.array(cls.output_data['roc_curve_input']['detections'])
+        cls.test_thresh = np.array(cls.output_data['roc_curve_input']['thresh'])
+
+       # define expected output from test_expected.json
+        cls.roc_curve_exp = cls.output_data['roc_curve_expected']
+
+        # threshold for floating point comparison
+        cls.thresh = 12
 
         # update output stream
         sys.stdout.write('SUCCESS')
 
-    def test_roc_curve(self):
+    def test_roc_curve_norm(self):
         """
-        Test the roc_curve() method. Create an instance of MOE class,
+        Test the roc_curve() method with normal inputs. Create an instance of MOE class,
         then set up the test values and make call to roc_curve().
         """
 
-        sys.stdout.write('\nTesting roc_curve()... ')
-
-        # new instance of MOE class
-        test_moe = MOE(self.data_path)
-
-        # define test input parameters
-        test_truth = self.expected_data['roc_curve_input']['truth']
-        test_detections = self.expected_data['roc_curve_input']['detections']
-        test_thresh = self.expected_data['roc_curve_input']['thresh']
+        # update output stream
+        sys.stdout.write('\nTesting roc_curve_norm()... ')
 
         # make call to roc_curve()
-        roc_curve_output = test_moe.roc_curve(test_truth,
-                                            test_detections,
-                                            test_thresh)
-
-        # define expected output from test_expected.json
-        roc_curve_exp = self.expected_data['roc_curve_expected']
-
-        # threshold for floating point comparison
-        t = 4
+        test_roc_curve = tff.roc_curve(self.test_truth,
+                                        self.test_detections,
+                                        self.test_thresh)
 
         # assert test output equals expected values
         test_fails = 0
-        for key in roc_curve_exp:
+        for key in self.roc_curve_exp:
             try:
-                nptest.assert_almost_equal(np.array(roc_curve_output[key]),
-                    np.array(roc_curve_exp[key]), decimal=t, verbose=True)
+                nptest.assert_almost_equal(
+                    np.array(test_roc_curve[key]),
+                    np.array(self.roc_curve_exp[key]),
+                    decimal=self.thresh, verbose=True)
             except AssertionError as err:
                 test_fails += 1
-                #sys.stderr.write('\nAssertion Error: ---------->'
-                #                + str(key)
-                #                + str(err))
-                # uncomment to print errors.. disabling for now
+                sys.stderr.write('\nAssertion Error: '
+                                + str(key)
+                                + str(err))
+                # add 'return' to exit loop on first failure
+                # helpful for dealing with one assertion
+                # error at a time!
+                #return
+
         if test_fails == 0:
             # write 'PASSED' to output stream if
             # all assertions pass
-            sys.stdout.write('PASSED | Thresh: ' + str(t))
+            sys.stdout.write('PASSED')
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
 
         sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
 

@@ -877,9 +877,6 @@ class ThinFilmFilter:
         'Sp' : Optimal specificity based upon optimal threshold }
         """
 
-        truth = np.array(truth)
-        detections = np.array(detections)
-        thresh = np.array(thresh)
         # define a dictionary containing function variable names
         # Detections | True Positives | True Negatives | False Positives | False Negatives
         # Probability of detection | Probability of false alarm
@@ -894,10 +891,12 @@ class ThinFilmFilter:
         # Run loop to threshold the detections data and calculate TP, TN, FP & FN
         for i, val in enumerate(thresh):
             roc_vals['detects'][:, i] = detections[:, i] >= val
-            roc_vals['true_pos'][:, i] = np.sum(np.sum(truth * roc_vals['detects']))
-            roc_vals['true_neg'][:, i] = np.sum(np.sum((1 - truth) * (1 - roc_vals['detects'])))
+            roc_vals['true_pos'][:, i] = np.sum(truth * roc_vals['detects'])
+            roc_vals['true_neg'][:, i] = np.sum((1 - truth) * (1 - roc_vals['detects']))
             roc_vals['false_pos'][:, i] = np.sum(roc_vals['detects']) - roc_vals['true_pos'][:, i]
             roc_vals['false_neg'][:, i] = np.sum(truth) - roc_vals['true_pos'][:, i]
+
+            #print(roc_vals['true_pos'])
 
         # Calculate Pd and Pfa
         roc_vals['prob_det'] = (roc_vals['true_pos']
@@ -926,7 +925,9 @@ class ThinFilmFilter:
         specificity = 1 - roc_vals['prob_fa'][0, t_ind]
 
         # Calculate the AUROC using a simple summation of rectangles
-        au_roc = -np.trapz([1, roc_vals['prob_fa']], [roc_vals['prob_det'], 0])
+        au_roc = -np.trapz(np.insert(roc_vals['prob_fa'], 0, 1, axis=1),
+                            np.insert(roc_vals['prob_det'],
+                            np.shape(roc_vals['prob_det'])[1], 0, axis=1))
 
         return {'AUROC':au_roc, 'Pd':roc_vals['prob_det'], 'Pfa':roc_vals['prob_fa'],
                 't_val':t_value, 'Se':sensitivity, 'Sp':specificity}

@@ -121,8 +121,8 @@ class TestRegVec(unittest.TestCase):
             # all assertions pass
             sys.stdout.write('PASSED')
 
-
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
 
         sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
 
