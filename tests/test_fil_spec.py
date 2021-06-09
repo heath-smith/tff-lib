@@ -79,7 +79,7 @@ class TestFilSpec(unittest.TestCase):
         # test materials
         cls.test_materials = cls.test_cond['materials']
         # test substrate thickness
-        cls.test_sub_thick = cls.input_data['design_settings']['sub_thick']
+        cls.test_sub_thick = cls.test_cond['sub_thick']
         # test w/ incident angle = 0
         cls.test_angle = 0
 
