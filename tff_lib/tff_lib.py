@@ -675,7 +675,6 @@ class ThinFilmFilter:
 
     @staticmethod
     def fil_spec(*args, **kwargs):
-        #(units='deg'):
         """
         Calculates the transmission and reflection spectra of a
         thin-film interference filter.
