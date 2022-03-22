@@ -741,7 +741,7 @@ class ThinFilmFilter:
         if kwargs:
             if kwargs['units'] == 'deg':
                 # convert incident angle from degrees to radians
-                theta = theta * (np.pi / 180)
+                input_args['theta'] = input_args['theta'] * (np.pi / 180)
 
         # define dict to store filspec calculations
         spec = {}
