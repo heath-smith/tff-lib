@@ -62,10 +62,8 @@ def fresnel_bare(
         raise TypeError(f'"units" expects <str> but received {type(units)}.')
 
     # convert arrays to complex, if needed
-    if not sub.dtype == np.complex:
-        sub = sub.astype(np.complex)
-    if not med.dtype == np.complex:
-        med = med.astype(np.complex)
+    sub = sub.astype(np.complex) if not sub.dtype == np.complex else sub
+    med = med.astype(np.complex) if not med.dtype == np.complex else med
 
     # convert to radians
     theta = theta * (np.pi / 180) if units == 'deg' else theta
@@ -90,29 +88,27 @@ def fresnel_bare(
     }
 
 
-def admit_delta(*args, **kwargs):
+def admit_delta(
+    layers:np.ndarray, waves:np.ndarray, sub:np.ndarray,
+    med:np.ndarray, films:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
     """
     Calculates filter admittances of incident, substrate,
     and film as well as the phase (delta) upon reflection for each film.
 
     Parameters
     -------------
-    *args:\n
-    wv_range (array): wavelength values in nanometers.\n
-    layer_stack (array): thickness values of each filter layer in nanometers.\n
-    theta (float): angle of incidence of radiation\n
-    i_n (array): complex refractive index of incident medium (i_n = n + i*k)\n
-    s_n (array): complex refractive index of substrate (s_n = n + i*k)\n
-    f_n (array): complex refractive index of thin films (f_n = n + i*k)
-
-    **kwargs: (optional)\n
-    units (str): units of measure for angle theta. Valid options are
-                'rad' and 'deg'. Default value is 'rad'.
+    layers = thickness values of each filter layer in nanometers.\n
+    waves = wavelength values in nanometers.\n
+    sub = complex refractive index of substrate\n
+    med = complex refractive index of incident medium\n
+    films = complex refractive index of thin films\n
+    theta = angle of incidence of radiation\n
+    units = units of measure for angle theta. Valid options are 'rad'
+            and 'deg'. Default value is 'rad'.
 
     Returns
     --------------
-    dictionary object of transmission and reflection value arrays\n
-    {key : result array}\n
+    (dict) transmission and reflection calculation results\n
     { 'ns_inc' : s-polarized admittance of the incident medium,\n
     'np_inc' : p-polarized admittance of the incident medium,\n
     'ns_sub' : s-polarized admittance of the substrate medium,\n
@@ -123,131 +119,70 @@ def admit_delta(*args, **kwargs):
 
     Raises
     ------------
-    TypeError if either i_n, s_n, or f_n is not type 'complex' or
-    'complex128'. Also raises TypeError if input arrays are not
-    'numpy.ndarray' types.\n
-    TypeError if 'units' param is not a string.\n
-    UnitError if units is not 'deg' or 'rad'.\n
-    ValueError if array shapes do not match.
-
-    Notes
-    --------------
-    Input arrays should be row-based and be equal to shape of wv_range.
-    ie: shape = (1, N)
+    TypeError, ValueError
 
     Examples
     --------------
-    >>> admittance = admit_delta(wv_range, layer_stack, i_n, s_n, f_n, theta, units='deg')
-    >>> ns_inc = admittance['ns_inc']
-    >>> d = admittance['delta']
+    >>> adm = admit_delta(waves, layers, med, sub, films, theta, units='deg')
+    >>> ns_inc = adm['ns_inc']
+    >>> delta = adm['delta']
     """
 
-    # dictionary to store input args
-    input_args = {'wv_range':[],
-                'layer_stack':[],
-                'theta':[],
-                'i_n':[],
-                's_n':[],
-                'f_n':[]}
+    # validate the input data
+    if not isinstance(units, str):
+        raise TypeError(f'"units" expects <str>, received {type(units)}.')
+    if units not in ('rad', 'deg'):
+        raise ValueError(f'"units" expects "rad" or "deg", received "{units}"')
+    if not type(theta) in (float, int):
+        raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
+    # check the arrays for consistency
+    for arr in (layers, waves, med, sub, films):
+        if not isinstance(arr, np.ndarray):
+            raise TypeError(f'-----> expected <np.ndarray>, received {type(arr)}.')
+    if not sub.shape == waves.shape:
+        raise ValueError(f'"sub" != "waves" ----> {sub.shape} != {waves.shape}')
+    if not med.shape == waves.shape:
+        raise ValueError(f'"med" != "waves" ----> {med.shape} != {waves.shape}')
+    if not films.shape == (len(layers), len(waves)):
+        raise ValueError(
+            f'"films" shape mismatch ----> {films.shape} != ({len(layers)}, {len(waves)}).')
 
-    # check if args list is correct length
-    if len(args) == 6:
-        # iterate input_args keys
-        for i, k in enumerate(input_args):
-            # define input_args key/value pairs
-            input_args[k] = args[i]
-    # raise ValueError exception if args len incorrect
-    elif len(args) != 6:
-        raise ValueError(" Incorrect number of args. Expected 6 but received "
-                        + str(len(args)))
+    # convert refractive indices to complex, if needed,
+    # and calculate complex dialectric constants
+    sub = sub.astype(np.complex)**2 if not sub.dtype == np.complex else sub**2
+    med = med.astype(np.complex)**2 if not med.dtype == np.complex else med**2
+    films = films.astype(np.complex)**2 if not films.dtype == np.complex else films**2
 
-    # check if 'units' param is valid
-    if 'units' in kwargs:
-        if kwargs['units'] not in ('rad', 'deg'):
-            # raise a custom 'UnitError' if 'units' not valid
-            raise UnitError(kwargs['units'], "Invalid Units. Valid inputs are 'rad' or 'deg'.")
-
-        if not isinstance(kwargs['units'], str):
-            # raise a TypeError if 'units' is not a string
-            raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
-                            + type(kwargs['units']))
-
-        if kwargs['units'] == 'deg':
-            # if input theta is 'deg', convert to radians
-            input_args['theta'] = input_args['theta'] * (np.pi / 180)
-
-    # validate i_n, s_n, and f_n input arrays they should be 'complex' or 'complex128'
-    # data structure should be 'np.ndarray' and all shapes should match wv_range
-    for i, arr in enumerate([input_args['i_n'], input_args['s_n'], input_args['f_n']]):
-        if arr.dtype not in ('complex128', 'complex') or not isinstance(arr, np.ndarray):
-            # raise TypeError if any array is not complex valued numpy array
-            raise TypeError(" Expected 'numpy.ndarray' of type 'complex' but received "
-                                + type(arr) + " of type " + str(arr.dtype))
-
-        # validate that shapes of i_n, s_n are equal to the wv_range shape
-        if i < 2 and np.shape(arr) != np.shape(input_args['wv_range']):
-            raise ValueError("ValueError: Expected arrays of shape "
-                            + str(np.shape(input_args['wv_range'])) + " but received "
-                            + str(np.shape(arr)))
-
-        # validate f_n shape is equal to LEN(layer_stack) X LEN(wl_range)
-        if i == 2 and np.shape(arr) != (len(input_args['layer_stack']),
-                                    np.shape(input_args['wv_range'])[1]):
-            raise ValueError("ValueError: Expected arrays of shape ("
-                + str(len(input_args['layer_stack'])) + ', '
-                + str(np.shape(input_args['wv_range'])[1])
-                + ") but received " + str(np.shape(arr)))
+    # convert theta to radians, if needed, ensure positive
+    theta = theta * (np.pi / 180) if units == 'deg' else theta
 
     # initialize dictionary to store admit_delta calculations
-    admit_calc = {}
+    admit = {}
 
-    # Calculation of the complex dielectric constants from measured
-    # optical constants
-    admit_calc['i_e'] = np.square(input_args['i_n']) # incident medium (air)
-    admit_calc['s_e'] = np.square(input_args['s_n']) # substrate
-    admit_calc['f_e'] = np.square(input_args['f_n']) # thin films
+    # Calculate admittances of the incident and substrate media
+    admit['ns_inc'] = np.sqrt(med - med * np.sin(theta)**2)
+    admit['np_inc'] = med / admit['ns_inc']
+    admit['ns_sub'] = np.sqrt(sub - med * np.sin(theta)**2)
+    admit['np_sub'] = sub / admit['ns_sub']
 
-    # Calculation of the admittances of the incident and substrate media
-    admit_calc['ns_inc'] = np.sqrt(admit_calc['i_e']
-                        - admit_calc['i_e']
-                        * np.sin(input_args['theta'])**2)
-    admit_calc['np_inc'] = (admit_calc['i_e']
-                        / admit_calc['ns_inc'])
-    admit_calc['ns_sub'] = np.sqrt(admit_calc['s_e']
-                        - admit_calc['i_e']
-                        * np.sin(input_args['theta'])**2)
-    admit_calc['np_sub'] = (admit_calc['s_e']
-                        / admit_calc['ns_sub'])
-
-    # Calculation of the admittances & phase factors
-    # for each layer of the film stack
-    admit_calc['ns_film'] = np.ones((len(input_args['layer_stack']),
-                np.shape(input_args['wv_range'])[1])).astype(complex)
-    admit_calc['np_film'] = np.ones((len(input_args['layer_stack']),
-                np.shape(input_args['wv_range'])[1])).astype(complex)
-    admit_calc['delta'] = np.ones((len(input_args['layer_stack']),
-                np.shape(input_args['wv_range'])[1])).astype(complex)
+    # Calculate admittances & phase factors for each layer
+    admit['ns_film'] = np.ones((len(layers), len(waves))).astype(complex)
+    admit['np_film'] = np.ones((len(layers), len(waves))).astype(complex)
+    admit['delta'] = np.ones((len(layers), len(waves))).astype(complex)
 
     # iterate each layer in thin film stack
-    for i, layer in enumerate(input_args['layer_stack']):
-        admit_calc['ns_film'][i, :] = np.sqrt(admit_calc['f_e'][i, :]
-                                - admit_calc['i_e']
-                                * np.sin(input_args['theta'])**2)
-        admit_calc['np_film'][i, :] = (admit_calc['f_e'][i, :]
-                                / admit_calc['ns_film'][i, :])
-        admit_calc['delta'][i, :] = ((2 * np.pi * layer
-                    * np.sqrt(admit_calc['f_e'][i, :]
-                    - admit_calc['i_e']
-                    * np.sin(input_args['theta'])**2))
-                    / np.array(input_args['wv_range']))
-
-    admit_calc['ns_film'] = np.flipud(admit_calc['ns_film'])
-    admit_calc['np_film'] = np.flipud(admit_calc['np_film'])
-    admit_calc['delta'] = np.flipud(admit_calc['delta'])
+    for i, lyr in enumerate(layers):
+        admit['ns_film'][i, :] = np.sqrt(films[i, :] - med * np.sin(theta)**2)
+        admit['np_film'][i, :] = films[i, :] / admit['ns_film'][i, :]
+        admit['delta'][i, :] = (2 * np.pi * lyr * np.sqrt(films[i, :] - med * np.sin(theta)**2)) / waves
 
     # Flip layer-based arrays ns_film, np_film, delta
     # since the last layer is the top layer
-    return admit_calc
+    admit['ns_film'] = np.flipud(admit['ns_film'])
+    admit['np_film'] = np.flipud(admit['np_film'])
+    admit['delta'] = np.flipud(admit['delta'])
+
+    return admit
 
 
 def c_mat(ns_film, np_film, delta):
