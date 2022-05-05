@@ -90,7 +90,7 @@ def fresnel_bare(
 
 
 def admit_delta(
-    layers:np.ndarray, waves:np.ndarray, sub:np.ndarray,
+    layers:list, waves:np.ndarray, sub:np.ndarray,
     med:np.ndarray, films:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
     """
     Calculates filter admittances of incident, substrate,
@@ -136,12 +136,14 @@ def admit_delta(
         raise ValueError(f'"units" expects "rad" or "deg", received "{units}"')
     if not type(theta) in (float, int):
         raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
+    if not isinstance(layers, list):
+        raise TypeError(f'"layers" expects <list>, received {type(layers)}.')
     # check the arrays for consistency
-    for arr in (layers, waves, med, sub, films):
+    for arr in (waves, med, sub, films):
         if not isinstance(arr, np.ndarray):
             raise TypeError(f'-----> expected <np.ndarray>, received {type(arr)}.')
-    if not sub.shape == waves.shape:
-        raise ValueError(f'"sub" != "waves" ----> {sub.shape} != {waves.shape}')
+    if not sub.shape == med.shape:
+        raise ValueError(f'"sub" != "waves" ----> {sub.shape} != {med.shape}')
     if not med.shape == waves.shape:
         raise ValueError(f'"med" != "waves" ----> {med.shape} != {waves.shape}')
     if not films.shape == (len(layers), len(waves)):
@@ -175,7 +177,7 @@ def admit_delta(
     for i, lyr in enumerate(layers):
         admit['ns_film'][i, :] = np.sqrt(films[i, :] - med * np.sin(theta)**2)
         admit['np_film'][i, :] = films[i, :] / admit['ns_film'][i, :]
-        admit['delta'][i, :] = (2 * np.pi * lyr * np.sqrt(films[i, :] - med * np.sin(theta)**2)) / waves
+        admit['delta'][i, :] = (2 * np.pi * lyr[1] * np.sqrt(films[i, :] - med * np.sin(theta)**2)) / waves
 
     # Flip layer-based arrays ns_film, np_film, delta
     # since the last layer is the top layer
