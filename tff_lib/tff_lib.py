@@ -129,20 +129,20 @@ def admit_delta(
     >>> delta = adm['delta']
     """
 
-    # validate the input data
+    # Check for TypeErrors
     if not isinstance(units, str):
         raise TypeError(f'"units" expects <str>, received {type(units)}.')
-    if units not in ('rad', 'deg'):
-        raise ValueError(f'"units" expects "rad" or "deg", received "{units}"')
     if not type(theta) in (float, int):
         raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
     if not isinstance(layers, list):
         raise TypeError(f'"layers" expects <list>, received {type(layers)}.')
-    # check the arrays for consistency
     for arr in (waves, med, sub, films):
         if not isinstance(arr, np.ndarray):
             raise TypeError(f'-----> expected <np.ndarray>, received {type(arr)}.')
-    if not sub.shape == med.shape:
+    # check for Value Errors
+    if units not in ('rad', 'deg'):
+        raise ValueError(f'"units" expects "rad" or "deg", received "{units}"')
+    if not sub.shape == waves.shape:
         raise ValueError(f'"sub" != "waves" ----> {sub.shape} != {med.shape}')
     if not med.shape == waves.shape:
         raise ValueError(f'"med" != "waves" ----> {med.shape} != {waves.shape}')
