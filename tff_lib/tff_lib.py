@@ -11,7 +11,7 @@ To install via pip:
 # import external packages
 import numpy as np
 from typing import Union
-
+import sys
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -51,14 +51,14 @@ def fresnel_bare(
         raise TypeError(f'"sub" expects <np.ndarray>, received{type(sub)}.')
     if not isinstance(med, np.ndarray):
         raise TypeError(f'"med" expects <np.ndarray>, received{type(med)}.')
-    if not sub.shape == med.shape:
-        raise ValueError(f'shape mismatch -----> {sub.shape} != {med.shape}.')
     if not type(theta) in (int, float):
         raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
-    if units not in ('rad', 'deg'):
-        raise ValueError(f'valid units are "rad" or "deg". received{units}.')
     if not isinstance(units, str):
         raise TypeError(f'"units" expects <str> but received {type(units)}.')
+    if units not in ('rad', 'deg'):
+        raise ValueError(f'valid units are "rad" or "deg". received {units}.')
+    if not sub.shape == med.shape:
+        raise ValueError(f'shape mismatch -----> {sub.shape} != {med.shape}.')
 
     # convert arrays to complex, if needed
     sub = sub.astype(np.complex) if not sub.dtype == np.complex else sub
@@ -68,22 +68,24 @@ def fresnel_bare(
     theta = theta * (np.pi / 180) if units == 'deg' else theta
 
     # Calculation of the Fresnel Amplitude Coefficients
-    r_s = ((med * np.cos(theta)) - np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
-        / (med * np.cos(theta)) + np.sqrt(sub**2 - med**2 * np.sin(theta)**2))
-    r_p = -(sub**2 * np.cos(theta) - med * np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
-        / sub**2 * np.cos(theta) + med * np.sqrt(sub**2 - med**2 * np.sin(theta)**2))
+    rs_num = (med * np.cos(theta)) - np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
+    rs_den = (med * np.cos(theta)) + np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
+    r_s = rs_num / rs_den
+    rp_num = sub**2 * np.cos(theta) - med * np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
+    rp_den = sub**2 * np.cos(theta) + med * np.sqrt(sub**2 - med**2 * np.sin(theta)**2)
+    r_p = -rp_num / rp_den
 
     # Calculation of Fresnel Intensities for bare substrate interface
     big_r_s = np.abs(r_s)**2
     big_r_p = np.abs(r_p)**2
 
     return {
-        'Ts':(1 - big_r_s),     # S-polarized transmission
-        'Tp':(1 - big_r_p),     # P-polarized transmission
-        'Rs':big_r_s,           # S-polarized reflection
-        'Rp':big_r_p,           # P-polarized reflection
-        'rs':r_s,               # S-polarized fresnel Amplitude Coefficient
-        'rp':r_p                # P-polarized fresnel Amplitude Coefficient
+        'Ts': (1 - big_r_s),     # S-polarized transmission
+        'Tp': (1 - big_r_p),     # P-polarized transmission
+        'Rs': big_r_s,           # S-polarized reflection
+        'Rp': big_r_p,           # P-polarized reflection
+        'rs': r_s,               # S-polarized fresnel Amplitude Coefficient
+        'rp': r_p                # P-polarized fresnel Amplitude Coefficient
     }
 
 
