@@ -14,21 +14,20 @@ from typing import Union
 
 
 def fresnel_bare(
-    sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad'):
+    sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
     """
     Calculates the fresnel amplitudes & intensities of the bare substrate.
 
     Parameters
     -----------
-    sub (array): complex refractive index of substrate (s_n = x+y*j).\n
-    med (array): complex refractive index on incident medium (i_n = x+y*j).\n
-    theta (float): angle of incidence of radiation.\n
-    units (str): 'deg' or 'rad'. Default is 'rad' if not specified.
+    sub = complex refractive index of substrate (s_n = x+y*j).\n
+    med = complex refractive index on incident medium (i_n = x+y*j).\n
+    theta = angle of incidence of radiation.\n
+    units = 'deg' or 'rad'. Default is 'rad' if not specified.
 
     Returns
     -----------
-    dictionary object of transmission and reflection value arrays\n
-    {key : result array}\n
+    (dict)  transmission and reflection value arrays\n
     { 'Ts' : s-polarized Fresnel Transmission Intensity,\n
     'Tp' : p-polarized Fresnel Transmission Intensity,\n
     'Rs' : s-polarized Fresnel Reflection Intensity,\n

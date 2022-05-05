@@ -2,15 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-This module contains the test class for
+This module contains the test suite for
 the fresnel_bare() method.
-
-Execute tests from top-level package directory.
 
 Examples
 ---------
->>> python -m unittest tests.test_fresnel_bare
->>> python -m unittest tests.test_fresnel_bare.<method>
+>>> python -m unittest -v tests.test_fresnel_bare
 """
 
 # import external packages
@@ -21,33 +18,24 @@ from pathlib import Path
 import sys
 import os
 import json
-import warnings
 
 # import tff_lib for testing
-from tff_lib.tff_lib import ThinFilmFilter as tff
-from tff_lib.exceptions import UnitError
+from tff_lib.tff_lib import fresnel_bare
 
 class TestFresnelBare(unittest.TestCase):
     """
-    Test case for fresnel_bare() method.
+    Test class for fresnel_bare() method.
     """
 
     @classmethod
     def setUpClass(cls):
         """
-        Set up the test environment. All tests here will use data from the
-        'test_input.json' file in the 'data' folder. Note that this is not
-        a class method. It will be executed before each test method.
+        Set up the test environment.
         """
 
-        # write status to output stream
-        sys.stdout.write('\nSetting up test class...')
-
-        # static navigation to top-level package directory
-        cls.package_dir = Path(__file__).resolve().parent.parent
-
-        # define directory with data files
-        cls.data_dir = os.path.join(cls.package_dir, 'data')
+        # static navigation to data directory and output directory
+        cls.dir = os.path.join(Path(__file__).resolve().parent, r'data')
+        cls.out_dir = os.path.join(cls.dir, 'out')
 
         # define input/output file names
         cls.input_file = os.path.join(cls.data_dir, 'test_input.json')
