@@ -167,7 +167,6 @@ class TestAdmitDelta(unittest.TestCase):
     def tearDownClass(cls):
 
         sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-
         sys.stdout.close()
 
 if __name__=='__main__':

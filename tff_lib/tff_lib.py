@@ -11,7 +11,6 @@ To install via pip:
 # import external packages
 import numpy as np
 from typing import Union
-import sys
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -187,15 +186,14 @@ def admit_delta(
 
     return admit
 
-
-def char_mat(nsf:np.ndarray, npf:np.ndarray, delta:np.ndarray) -> dict:
+def char_matrix(ns_film:np.ndarray, np_film:np.ndarray, delta:np.ndarray) -> dict:
     """
     Calculates the characteristic matrix for multiple thin film layers.
 
     Parameters
     -----------
-    nsf = s-polarized admittance of the film stack layers.\n
-    npf = p-polarized admittance of the film stack layers.\n
+    ns_film = s-polarized admittance of the film stack layers.\n
+    np_film = p-polarized admittance of the film stack layers.\n
     delta = phase upon reflection for each film.
 
     Returns
@@ -219,44 +217,40 @@ def char_mat(nsf:np.ndarray, npf:np.ndarray, delta:np.ndarray) -> dict:
     Examples
     ------------
     >>> char_matrix = c_mat(nsFilm, npFilm, delta)
-    >>> ns_film = char_matrix[ 'nsFilm' ]
-    >>> d = char_matrix[ 'delta' ]
     """
 
-    # validate input arguments
-    for arr in [nsf, npf, delta]:
-        # if np.ndarray's, check the data type
-        if isinstance(arr, np.ndarray):
-            if arr.dtype not in ('float64', 'complex', 'complex128'):
-                # raise TypeError if any array is not complex
-                raise TypeError("Expected 'float64', 'complex', or 'complex128'"
-                                + " type but received "
-                                + str(arr.dtype))
-        # if not instance of np.ndarray, raise exception
-        if not isinstance(arr, np.ndarray):
-            # raise TypeError if not a numpy ndarray
-            raise TypeError("Expected 'numpy.ndarray' but received "
-                            + type(arr))
+    # validate input types
+    if not isinstance(ns_film, np.ndarray):
+        raise TypeError(f'"s_adm" expects <np.ndarray>, received {type(ns_film)}.')
+    if not isinstance(np_film, np.ndarray):
+        raise TypeError(f'"p_adm" expects <np.ndarray>, received {type(np_film)}.')
+    if not isinstance(delta, np.ndarray):
+        raise TypeError(f'"delta" expects <np.ndarray>, received {type(delta)}.')
+
+    # validate the input array shapes
+    if not ns_film.shape == np_film.shape:
+        raise ValueError(f'shape mismatch -----> {ns_film.shape} != {np_film.shape}.')
 
     # Calculation of the characteristic matrix elements
+    # shape of 'delta' is (N-layers X len(wavelength range))
     elements = {'s11': np.cos(delta),
                 's22': np.cos(delta),
                 'p11': np.cos(delta),
                 'p22': np.cos(delta),
-                's12': (1j / nsf) * np.sin(delta),
-                'p12': (-1j / npf) * np.sin(delta),
-                's21': (1j * nsf) * np.sin(delta),
-                'p21': (-1j * npf) * np.sin(delta)}
+                's12': (1j / ns_film) * np.sin(delta),
+                'p12': (-1j / np_film) * np.sin(delta),
+                's21': (1j * ns_film) * np.sin(delta),
+                'p21': (-1j * np_film) * np.sin(delta)}
 
     # Initialize the characteristic matrices
-    char_mat = {'S11':np.ones((1, np.shape(elements['s11'])[1])).astype(complex),
-                'S12':np.zeros((1, np.shape(elements['s11'])[1])).astype(complex),
-                'S21':np.zeros((1, np.shape(elements['s11'])[1])).astype(complex),
-                'S22':np.ones((1, np.shape(elements['s11'])[1])).astype(complex),
-                'P11':np.ones((1, np.shape(elements['p11'])[1])).astype(complex),
-                'P12':np.zeros((1, np.shape(elements['p11'])[1])).astype(complex),
-                'P21':np.zeros((1, np.shape(elements['p11'])[1])).astype(complex),
-                'P22':np.ones((1, np.shape(elements['p11'])[1])).astype(complex)}
+    char_mat = {'S11':np.ones(np.shape(elements['s11'])[1]).astype(np.complex),
+                'S12':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex),
+                'S21':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex),
+                'S22':np.ones(np.shape(elements['s11'])[1]).astype(np.complex),
+                'P11':np.ones(np.shape(elements['p11'])[1]).astype(np.complex),
+                'P12':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex),
+                'P21':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex),
+                'P22':np.ones(np.shape(elements['p11'])[1]).astype(np.complex)}
 
     # Multiply all of the individual layer characteristic matrices together
     for i in range(np.shape(elements['s11'])[0]):
