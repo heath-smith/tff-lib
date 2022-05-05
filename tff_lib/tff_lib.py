@@ -148,7 +148,7 @@ def admit_delta(
             f'"films" shape mismatch ----> {films.shape} != ({len(layers)}, {len(waves)}).')
 
     # convert refractive indices to complex, if needed,
-    # and calculate complex dialectric constants
+    # and calculate complex dialectric constants (square the values)
     sub = sub.astype(np.complex)**2 if not sub.dtype == np.complex else sub**2
     med = med.astype(np.complex)**2 if not med.dtype == np.complex else med**2
     films = films.astype(np.complex)**2 if not films.dtype == np.complex else films**2
@@ -185,20 +185,19 @@ def admit_delta(
     return admit
 
 
-def c_mat(ns_film, np_film, delta):
+def char_mat(nsf:np.ndarray, npf:np.ndarray, delta:np.ndarray) -> dict:
     """
     Calculates the characteristic matrix for multiple thin film layers.
 
     Parameters
     -----------
-    'ns_film' (array): s-polarized admittance of the film stack layers.\n
-    'np_film' (array): p-polarized admittance of the film stack layers.\n
-    'delta' (array): phase upon reflection for each film.
+    nsf = s-polarized admittance of the film stack layers.\n
+    npf = p-polarized admittance of the film stack layers.\n
+    delta = phase upon reflection for each film.
 
     Returns
     ------------
-    dictionary object of characteristic matrix\n
-    {key : result array}\n
+    (dict) characteristic matrix\n
     { S11 (array): matrix entry\n
     S12 (array): matrix entry\n
     S21 (array): matrix entry\n
@@ -222,7 +221,7 @@ def c_mat(ns_film, np_film, delta):
     """
 
     # validate input arguments
-    for arr in [ns_film, np_film, delta]:
+    for arr in [nsf, npf, delta]:
         # if np.ndarray's, check the data type
         if isinstance(arr, np.ndarray):
             if arr.dtype not in ('float64', 'complex', 'complex128'):
@@ -241,10 +240,10 @@ def c_mat(ns_film, np_film, delta):
                 's22': np.cos(delta),
                 'p11': np.cos(delta),
                 'p22': np.cos(delta),
-                's12': (1j / ns_film) * np.sin(delta),
-                'p12': (-1j / np_film) * np.sin(delta),
-                's21': (1j * ns_film) * np.sin(delta),
-                'p21': (-1j * np_film) * np.sin(delta)}
+                's12': (1j / nsf) * np.sin(delta),
+                'p12': (-1j / npf) * np.sin(delta),
+                's21': (1j * nsf) * np.sin(delta),
+                'p21': (-1j * npf) * np.sin(delta)}
 
     # Initialize the characteristic matrices
     char_mat = {'S11':np.ones((1, np.shape(elements['s11'])[1])).astype(complex),
