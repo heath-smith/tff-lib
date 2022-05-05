@@ -168,9 +168,9 @@ def admit_delta(
     admit['np_sub'] = sub / admit['ns_sub']
 
     # Calculate admittances & phase factors for each layer
-    admit['ns_film'] = np.ones((len(layers), len(waves))).astype(complex)
-    admit['np_film'] = np.ones((len(layers), len(waves))).astype(complex)
-    admit['delta'] = np.ones((len(layers), len(waves))).astype(complex)
+    admit['ns_film'] = np.ones((len(layers), len(waves))).astype(np.complex)
+    admit['np_film'] = np.ones((len(layers), len(waves))).astype(np.complex)
+    admit['delta'] = np.ones((len(layers), len(waves))).astype(np.complex)
 
     # iterate each layer in thin film stack
     for i, lyr in enumerate(layers):
@@ -185,6 +185,7 @@ def admit_delta(
     admit['delta'] = np.flipud(admit['delta'])
 
     return admit
+
 
 def char_matrix(ns_film:np.ndarray, np_film:np.ndarray, delta:np.ndarray) -> dict:
     """
@@ -276,15 +277,15 @@ def char_matrix(ns_film:np.ndarray, np_film:np.ndarray, delta:np.ndarray) -> dic
     return char_mat
 
 
-def fresnel_film(admit_deltas, char_matrix):
+def fresnel_film(admittance:dict, char_matrix:dict) -> dict:
     """
     Calculates the fresnel amplitudes & intensities of film. Requires
     output from admit_delta() and c_mat() methods.
 
     Parameters
     ------------
-    admit_deltas (dict): results of admit_delta() method\n
-    char_matrix (dict): results of c_mat() method\n
+    admittance = results of admit_delta() method\n
+    char_matrix = results of char_matrix() method
 
     Returns
     -------------
@@ -301,63 +302,43 @@ def fresnel_film(admit_deltas, char_matrix):
 
     Raises
     ------------
+    ValueError, TypeError
 
     Examples
     --------------
-    fresnel = fresnel_film(admit_deltas, char_matrix)\n
-    T_p = fresnel[ 'Tp' ]\n
-    R_s = fresnel[ 'Rs' ]
+    >>> fresnel = fresnel_film(admittance, char_matrix)\n
+    >>> T_p = fresnel[ 'Tp' ]\n
+    >>> R_s = fresnel[ 'Rs' ]
+
+    See Also
+    ---------------
+    >>> tff_lib.admit_delta()
+    >>> tff_lib.char_matrix()
     """
 
-    # define dict for incident interface admittances
-    admit_inc = {}
-
     # Calculation of the admittances of the incident interface
-    admit_inc['ns_f'] = ((np.array(char_matrix['S21']).astype(complex)
-                    - np.array(admit_deltas['ns_sub']).astype(complex)
-                    * np.array(char_matrix['S22']).astype(complex))
-                    / (np.array(char_matrix['S11']).astype(complex)
-                    - np.array(admit_deltas['ns_sub']).astype(complex)
-                    * np.array(char_matrix['S12']).astype(complex)))
-    admit_inc['np_f'] = ((np.array(char_matrix['P21']).astype(complex)
-                    + np.array(admit_deltas['np_sub']).astype(complex)
-                    * np.array(char_matrix['P22']).astype(complex))
-                    / (np.array(char_matrix['P11']).astype(complex)
-                    + np.array(admit_deltas['np_sub']).astype(complex)
-                    * np.array(char_matrix['P12']).astype(complex)))
-
-    # define a dict to store fresnel amplitude calculations
-    fresnel_calcs = {}
+    ns_f = ((char_matrix['S21'] - admittance['ns_sub'] * char_matrix['S22'])
+        / (char_matrix['S11'] - admittance['ns_sub'] * char_matrix['S12']))
+    np_f = ((char_matrix['P21'] + admittance['np_sub'] * char_matrix['P22'])
+        / (char_matrix['P11'] + admittance['np_sub'] * char_matrix['P12']))
 
     # Calculation of the Fresnel Amplitude Coefficients
-    fresnel_calcs['rs'] = ((np.array(admit_deltas['ns_inc']).astype(complex)
-                            + admit_inc['ns_f'])
-                            / (np.array(admit_deltas['ns_inc']).astype(complex)
-                            - admit_inc['ns_f']))
-    fresnel_calcs['rp'] = ((np.array(admit_deltas['np_inc']).astype(complex)
-                            - admit_inc['np_f'])
-                            / (np.array(admit_deltas['np_inc']).astype(complex)
-                            + admit_inc['np_f']))
-    fresnel_calcs['ts'] = ((1 + fresnel_calcs['rs'])
-                            / (np.array(char_matrix['S11']).astype(complex)
-                            - np.array(char_matrix['S12']).astype(complex)
-                            * np.array(admit_deltas['ns_sub']).astype(complex)))
-    fresnel_calcs['tp'] = ((1 + fresnel_calcs['rp'])
-                            / (np.array(char_matrix['P11']).astype(complex)
-                            + np.array(char_matrix['P12']).astype(complex)
-                            * np.array(admit_deltas['np_sub']).astype(complex)))
+    fresnel = {
+        'rs': (admittance['ns_inc'] + ns_f) / (admittance['ns_inc'] - ns_f),
+        'rp': (admittance['np_inc'] - np_f) / (admittance['np_inc'] + np_f)
+    }
+    fresnel['ts'] = ((1 + fresnel['rs'])
+                    / (char_matrix['S11'] - char_matrix['S12']  * admittance['ns_sub']))
+    fresnel['tp'] = ((1 + fresnel['rp'])
+                    / (char_matrix['P11'] + char_matrix['P12'] * admittance['np_sub']))
 
     # Calculation of the Fresnel Amplitude Intensities
-    fresnel_calcs['Rs'] = np.square(np.abs(fresnel_calcs['rs']))
-    fresnel_calcs['Rp'] = np.square(np.abs(fresnel_calcs['rp']))
-    fresnel_calcs['Ts'] = (np.real(np.array(admit_deltas['ns_sub']).astype(complex)
-                        / np.array(admit_deltas['ns_inc']).astype(complex))
-                        * np.square(np.abs(fresnel_calcs['ts'])))
-    fresnel_calcs['Tp'] = (np.real(np.array(admit_deltas['np_sub']).astype(complex)
-                        / np.array(admit_deltas['np_inc']).astype(complex))
-                        * np.square(np.abs(fresnel_calcs['tp'])))
+    fresnel['Rs'] = np.abs(fresnel['rs'])**2
+    fresnel['Rp'] = np.abs(fresnel['rp'])**2
+    fresnel['Ts'] = np.real(admittance['ns_sub'] / admittance['ns_inc']) * np.abs(fresnel['ts'])**2
+    fresnel['Tp'] = np.real(admittance['np_sub'] / admittance['np_inc']) * np.abs(fresnel['tp'])**2
 
-    return fresnel_calcs
+    return fresnel
 
 
 def sub_n_eff(s_n, theta, units='rad'):
@@ -391,7 +372,7 @@ def sub_n_eff(s_n, theta, units='rad'):
     inside2 = np.array(inside2, dtype=np.float64)
     sn_eff = np.sqrt(inside2)
 
-    return np.array(sn_eff).astype(complex)
+    return np.array(sn_eff)
 
 
 def path_len(sub_thick, i_n, sn_eff, theta, units='rad'):
@@ -419,7 +400,7 @@ def path_len(sub_thick, i_n, sn_eff, theta, units='rad'):
     len_path = ((sub_thick * (10**6))
             / np.sqrt(1 - (np.abs(i_n)**2
             * (np.sin(theta)**2) / sn_eff**2)))
-    len_path = len_path.astype(complex)
+    len_path = len_path
 
     return len_path
 
@@ -662,26 +643,26 @@ def fil_spec(*args, **kwargs):
     ind = {}
 
     # substrate refractive index
-    ind['s_n'] = np.array(input_args['substrate']).astype(complex)
+    ind['s_n'] = np.array(input_args['substrate'])
     # film refractive indices
     ind['f_n'] = np.zeros((len(input_args['layer_stack']),
-            np.shape(input_args['wv_range'])[1])).astype(complex)
+            np.shape(input_args['wv_range'])[1]))
     # incident medium refractive index (assume incident medium is air)
-    ind['i_n'] = np.ones(np.shape(input_args['wv_range'])).astype(complex)
+    ind['i_n'] = np.ones(np.shape(input_args['wv_range']))
 
     # get measured substrate & thin film optical constant data
     for i, mat in enumerate(input_args['materials']):
         if mat == "H":
-            ind['f_n'][i, :] = np.array(input_args['h_mat']).astype(complex)
+            ind['f_n'][i, :] = np.array(input_args['h_mat'])
         else:
-            ind['f_n'][i, :] = np.array(input_args['l_mat']).astype(complex)
+            ind['f_n'][i, :] = np.array(input_args['l_mat'])
 
     # calculate the effective substrate refractive index (for abs. substrates)
     sn_eff = ThinFilmFilter.sub_n_eff(ind['s_n'], input_args['theta'])
 
     # calculate the absorption coefficient for multiple reflections
     alpha = (4 * np.pi * np.imag(ind['s_n'])) / np.array(input_args['wv_range'])
-    alpha = alpha.astype(complex)
+    alpha = alpha
 
     # Calculate the path length through the substrate
     p_len = ThinFilmFilter.path_len(input_args['sub_thick'], ind['i_n'],
