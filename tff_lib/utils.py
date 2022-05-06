@@ -6,6 +6,22 @@ tff_lib package.
 # import dependencies
 import numpy as np
 from typing import Union
+import matplotlib.pyplot as plt
+
+def plot_data(x_data, y_data, title, xlabel, ylabel, size=(12, 4), filepath=None):
+    """
+    Visualize input data.
+    """
+
+    plt.figure(figsize=size)
+    plt.plot(np.squeeze(np.real(x_data)), np.squeeze(np.real(y_data)))
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    if not filepath:
+        plt.show()
+    else:
+        plt.savefig(filepath)
 
 def convert_to_numpy(data:dict, is_complex:bool=False) -> dict:
     """

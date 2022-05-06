@@ -11,6 +11,8 @@ To install via pip:
 # import external packages
 import numpy as np
 from typing import Union
+from tff_lib import utils
+import sys
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -89,8 +91,8 @@ def fresnel_bare(
 
 
 def admit_delta(
-    layers:list, waves:np.ndarray, sub:np.ndarray,
-    med:np.ndarray, films:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
+    layers:list, waves:np.ndarray, sub:np.ndarray, med:np.ndarray,
+    films:np.ndarray, theta:Union[int, float, np.ndarray], units:str='rad') -> dict:
     """
     Calculates filter admittances of incident, substrate,
     and film as well as the phase (delta) upon reflection for each film.
@@ -101,8 +103,8 @@ def admit_delta(
     waves = wavelength values in nanometers.\n
     sub = complex refractive index of substrate\n
     med = complex refractive index of incident medium\n
-    films = complex refractive index of thin films\n
-    theta = angle of incidence of radiation\n
+    films = 2-D array of complex refractive index of thin films\n
+    theta = angle of incidence of radiation (can be number or array)\n
     units = units of measure for angle theta. Valid options are 'rad'
             and 'deg'. Default value is 'rad'.
 
@@ -131,8 +133,9 @@ def admit_delta(
     # Check for TypeErrors
     if not isinstance(units, str):
         raise TypeError(f'"units" expects <str>, received {type(units)}.')
-    if not type(theta) in (float, int):
-        raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
+    if not type(theta) in (float, int, np.ndarray):
+        raise TypeError(
+            f'"theta" expects <int>, <float>, or <np.ndarray>, received {type(theta)}.')
     if not isinstance(layers, list):
         raise TypeError(f'"layers" expects <list>, received {type(layers)}.')
     for arr in (waves, med, sub, films):
@@ -148,6 +151,10 @@ def admit_delta(
     if not films.shape == (len(layers), len(waves)):
         raise ValueError(
             f'"films" shape mismatch ----> {films.shape} != ({len(layers)}, {len(waves)}).')
+    if isinstance(theta, np.ndarray):
+        if not len(theta) == len(waves):
+            raise ValueError(
+                f'"theta" shape mismatch -----> {len(theta)} != ({len(waves)}.')
 
     # convert refractive indices to complex, if needed,
     # and calculate complex dialectric constants (square the values)
@@ -341,192 +348,29 @@ def fresnel_film(admittance:dict, char_matrix:dict) -> dict:
     return fresnel
 
 
-def incident_reflection(*args, **kwargs):
-    """
-    Calculates the reflection that originates from the incident medium.
-
-    Parameters
-    -----------
-    *args:\n
-
-    **kwargs: (optional)\n
-    units (str):
-
-    Returns
-    -----------
-    dictionary object of transmission and reflection value arrays\n
-    {key : result array}\n
-    { }
-    """
-
-    # dictionary to store input args
-    input_args = {'wv_range':[],
-                'layers':[],
-                'i_n':[],
-                's_n':[],
-                'f_n':[],
-                'theta':[] }
-
-    # check if args list is correct length
-    if len(args) == 6:
-        # iterate input_args keys
-        for i, k in enumerate(input_args):
-            # define input_args key/value pairs
-            input_args[k] = args[i]
-    # raise ValueError exception if args len incorrect
-    elif len(args) != 6:
-        raise ValueError(" Incorrect number of args. Expected 6 but received "
-                        + str(len(args)))
-
-    # check if 'units' param is valid
-    if 'units' in kwargs:
-        if kwargs['units'] not in ('rad', 'deg'):
-            # raise a custom 'UnitError' if 'units' not valid
-            raise UnitError(kwargs['units'], "Invalid Units. Valid inputs are 'rad' or 'deg'.")
-
-        if not isinstance(kwargs['units'], str):
-            # raise a TypeError if 'units' is not a string
-            raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
-                            + type(kwargs['units']))
-
-        if kwargs['units'] == 'deg':
-            # convert incident angle from degrees to radians
-            input_args['theta'] = input_args['theta'] * (np.pi / 180)
-
-    inc_ref = {}
-
-    # calculate admittances
-    inc_ref['admit_delta'] = ThinFilmFilter.admit_delta(input_args['wv_range'],
-                                                        input_args['layers'],
-                                                        input_args['theta'],
-                                                        input_args['i_n'],
-                                                        input_args['s_n'],
-                                                        input_args['f_n'])
-
-    # calculate the characteristic matrix
-    inc_ref['c_mat'] = ThinFilmFilter.c_mat(
-                        np.array(inc_ref['admit_delta']['ns_film']),
-                        np.array(inc_ref['admit_delta']['np_film']),
-                        np.array(inc_ref['admit_delta']['delta']))
-
-    # calculate fresnel intensities and amplitudes
-    inc_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(inc_ref['admit_delta'],
-                                                        inc_ref['c_mat'])
-
-    return inc_ref
-
-
-def substrate_reflection(*args, **kwargs):
-    """
-    Calculates the reflection that originates from the substrate medium.
-
-    Parameters
-    ----------
-    *args:\n
-
-    **kwargs: (optional)\n
-
-
-    Returns
-    ----------
-    nested dictionary object with admit_delta() results and
-    the results from c_mat().\n
-    {key : result array}\n
-    { }
-
-    See Also
-    ----------
-    admit_delta()
-    c_mat()
-    """
-
-    # dictionary to store input args
-    input_args = {'wv_range':[],
-                'layers':[],
-                'i_n':[],
-                's_n':[],
-                'f_n':[],
-                'theta':[],
-                'sn_eff':[]}
-
-    # check if args list is correct length
-    if len(args) == 7:
-        # iterate input_args keys
-        for i, k in enumerate(input_args):
-            # define input_args key/value pairs
-            input_args[k] = args[i]
-    # raise ValueError exception if args len incorrect
-    elif len(args) != 7:
-        raise ValueError(" Incorrect number of args. Expected 7 but received "
-                        + str(len(args)))
-
-    # check if 'units' param is valid
-    if 'units' in kwargs:
-        if kwargs['units'] not in ('rad', 'deg'):
-            # raise a custom 'UnitError' if 'units' not valid
-            raise UnitError(kwargs['units'], "Invalid Units. Valid inputs are 'rad' or 'deg'.")
-
-        if not isinstance(kwargs['units'], str):
-            # raise a TypeError if 'units' is not a string
-            raise TypeError("TypeError: 'units' parameter expects type 'str' but received "
-                            + type(kwargs['units']))
-
-        if kwargs['units'] == 'deg':
-            # convert incident angle from degrees to radians
-            input_args['theta'] = input_args['theta'] * (np.pi / 180)
-
-    sub_ref = {}
-
-    # angle of substrate reflectance
-    input_args['theta'] = np.arcsin(input_args['i_n']
-                            / input_args['s_n']
-                            * np.sin(input_args['theta']))
-
-    # calculate admittances
-    sub_ref['admit_delta'] = ThinFilmFilter.admit_delta(input_args['wv_range'],
-                                                        input_args['layers'],
-                                                        input_args['theta'],
-                                                        input_args['sn_eff'],
-                                                        input_args['i_n'],
-                                                        np.flipud(input_args['f_n']))
-
-    # calculate characteristic matrix
-    sub_ref['c_mat'] = ThinFilmFilter.c_mat(
-                        np.array(sub_ref['admit_delta']['ns_film']),
-                        np.array(sub_ref['admit_delta']['np_film']),
-                        np.array(sub_ref['admit_delta']['delta']))
-
-    # calculate fresnel intensities & amplitudes
-    sub_ref['fresnel_film'] = ThinFilmFilter.fresnel_film(sub_ref['admit_delta'],
-                                                        sub_ref['c_mat'])
-
-    return sub_ref
-
-
-def fil_spec(*args, **kwargs):
+def fil_spec(
+    waves:np.ndarray, sub:np.ndarray, med:np.ndarray, films:np.ndarray, layers:list,
+    sub_thick:Union[int, float], theta:Union[int, float], units:str='rad') -> dict:
     """
     Calculates the transmission and reflection spectra of a
     thin-film interference filter.
 
     Parameters
     ------------
-    *args:\n
-    wv_range
-    substrate
-    h_mat
-    l_mat
-    layer_stack
-    materials
-    theta
-    sub_thick
-
-    **kwargs:\n
-    units='rad'
+    waves =
+    sub =
+    med =
+    high =
+    low =
+    films =
+    layers =
+    sub_thick =
+    theta =
+    units =
 
     Returns
     -----------
-    dictionary object of transmission and reflection value arrays\n
-    {key : result array}\n
+    (dict) transmission and reflection value arrays\n
     { 'T' : average transmission spectrum over wavelength range ([Tp + Ts] / 2),\n
     'Ts' : s-polarized transmission spectrum wavelength range,\n
     'Tp' : p-polarized transmission spectrum over wavelength range,\n
@@ -534,111 +378,65 @@ def fil_spec(*args, **kwargs):
     'Rs' : s-polarized reflection spectrum over wavelength range,\n
     'Rp' : p-polarized reflection spectrum over wavelength range }
 
+    Raises
+    -------------
+    ValueError, TypeError
+
     See Also
     -------------
-    sub_n_eff(*args, **kwargs)
-    path_len(*args, **kwargs)
-    incident_reflection(*args, **kwargs)
-    substrate_reflection(*args, **kwargs)
+    utils.sub_n_eff()
+    utils.path_len()
+    utils.film_matrix()
     """
 
-    # dictionary to store input args
-    input_args = {'wv_range':None,
-                'substrate':None,
-                'h_mat':None,
-                'l_mat':None,
-                'layer_stack':None,
-                'materials':None,
-                'theta':None,
-                'sub_thick':None}
+    # convert incident angle from degrees to radians
+    theta = theta * (np.pi / 180) if units == 'deg' else theta
 
-    # check if args list is correct length
-    # raise ValueError exception if args len incorrect
-    if len(args) > 8:
-        raise ValueError("Too many input arguments. Expected 8 but received "
-                        + str(len(args)))
-    if len(args) < 8:
-        raise ValueError("Not enough input arguments. Expected 8 but received "
-                        + str(len(args)))
-    if len(args) == 8:
-        # iterate input_args keys
-        for i, k in enumerate(input_args):
-            # define input_args key/value pairs
-            input_args[k] = args[i]
-
-    # parse kwargs dictionary
-    if kwargs:
-        if kwargs['units'] == 'deg':
-            # convert incident angle from degrees to radians
-            input_args['theta'] = input_args['theta'] * (np.pi / 180)
-
-    # define dict to store filspec calculations
-    spec = {}
-
-    # dict to store refractive index values
-    ind = {}
-
-    # substrate refractive index
-    ind['s_n'] = np.array(input_args['substrate'])
-    # film refractive indices
-    ind['f_n'] = np.zeros((len(input_args['layer_stack']),
-            np.shape(input_args['wv_range'])[1]))
-    # incident medium refractive index (assume incident medium is air)
-    ind['i_n'] = np.ones(np.shape(input_args['wv_range']))
-
-    # get measured substrate & thin film optical constant data
-    for i, mat in enumerate(input_args['materials']):
-        if mat == "H":
-            ind['f_n'][i, :] = np.array(input_args['h_mat'])
-        else:
-            ind['f_n'][i, :] = np.array(input_args['l_mat'])
-
-    # calculate the effective substrate refractive index (for abs. substrates)
-    sn_eff = ThinFilmFilter.sub_n_eff(ind['s_n'], input_args['theta'])
+    # calculate effective substrate refractive index
+    sn_eff = utils.effective_index(sub, theta)
 
     # calculate the absorption coefficient for multiple reflections
-    alpha = (4 * np.pi * np.imag(ind['s_n'])) / np.array(input_args['wv_range'])
-    alpha = alpha
+    alpha = (4 * np.pi * np.imag(sub)) / waves
 
     # Calculate the path length through the substrate
-    p_len = ThinFilmFilter.path_len(input_args['sub_thick'], ind['i_n'],
-                                    sn_eff, input_args['theta'])
+    p_len = utils.path_length(sub_thick, med, sn_eff, theta)
 
-    # Fresnel Amplitudes & Intensities for incident medium / substrate interface
-    fr_bare = ThinFilmFilter.fresnel_bare(ind['i_n'], ind['s_n'], input_args['theta'])
+    # Fresnel Amplitudes & Intensities
+    # incident medium / substrate interface
+    fr_bare = fresnel_bare(sub, med, theta)
 
-    # reflection that originates from the incident medium
-    i_ref = ThinFilmFilter.incident_reflection(input_args['wv_range'],
-                        input_args['layer_stack'], ind['i_n'], ind['s_n'],
-                        ind['f_n'], input_args['theta'])
+    # reflection originates from incident medium
+    med_adm = admit_delta(layers, waves, sub, med, films, theta)
+    med_char = char_matrix(med_adm['ns_film'], med_adm['np_film'], med_adm['delta'])
+    med_ref = fresnel_film(med_adm, med_char)
 
-    # reflection that originates from the substrate medium
-    s_ref = ThinFilmFilter.substrate_reflection(input_args['wv_range'],
-                        input_args['layer_stack'], ind['i_n'], ind['s_n'],
-                        ind['f_n'], input_args['theta'], sn_eff)
+    # reflection originates from substrate
+    theta_inv = np.arcsin(med / sub * np.sin(theta))
+    layers_inv = [(str(v[0]), float(v[1])) for v in np.flipud(layers)]
+    sub_adm = admit_delta(layers_inv, waves, sub, med, np.flipud(films), theta_inv)
+    sub_char = char_matrix(sub_adm['ns_film'], sub_adm['np_film'], sub_adm['delta'])
+    sub_ref = fresnel_film(sub_adm, sub_char)
 
     # calculate filter reflection
-    spec['Rs'] = (i_ref['fresnel_film']['Rs']
-                    + ((i_ref['fresnel_film']['Ts']**2)
-                    * fr_bare['Rs'] * np.exp(-2 * alpha * p_len))
-                    / (1 - (s_ref['fresnel_film']['Rs']
-                    * fr_bare['Rs'] * np.exp(-2 * alpha * p_len))))
-    spec['Rp'] = (i_ref['fresnel_film']['Rp']
-                    + ((i_ref['fresnel_film']['Tp']**2)
-                    * fr_bare['Rp'] * np.exp(-2 * alpha * p_len))
-                    / (1 - (s_ref['fresnel_film']['Rp']
-                    * fr_bare['Rp'] * np.exp(-2 * alpha * p_len))))
+    spec = {'Rs': (
+        med_ref['Rs'] + ((med_ref['Ts']**2) * fr_bare['Rs'] * np.exp(-2 * alpha * p_len))
+        / (1 - (sub_ref['Rs'] * fr_bare['Rs'] * np.exp(-2 * alpha * p_len)))
+    )}
+    spec['Rp'] = (
+        med_ref['Rp']  + ((med_ref['Tp']**2)  * fr_bare['Rp'] * np.exp(-2 * alpha * p_len))
+        / (1 - (sub_ref['Rp']  * fr_bare['Rp'] * np.exp(-2 * alpha * p_len)))
+    )
     spec['R'] = (spec['Rs'] + spec['Rp']) / 2
 
     # calculate filter transmission
-    spec['Ts'] = ((i_ref['fresnel_film']['Ts']
-                    * fr_bare['Ts'] * np.exp(-alpha * p_len))
-                    / (1 - (s_ref['fresnel_film']['Rs']
-                    * fr_bare['Rs'] * np.exp(-2 * alpha * p_len))))
-    spec['Tp'] = ((i_ref['fresnel_film']['Tp']
-                    * fr_bare['Tp'] * np.exp(-alpha * p_len))
-                    / (1 - (s_ref['fresnel_film']['Rp']
-                    * fr_bare['Rp'] * np.exp(-2 * alpha * p_len))))
+    spec['Ts'] = (
+        (med_ref['Ts'] * fr_bare['Ts'] * np.exp(-alpha * p_len))
+        / (1 - (sub_ref['Rs'] * fr_bare['Rs'] * np.exp(-2 * alpha * p_len)))
+    )
+    spec['Tp'] = (
+        (med_ref['Tp'] * fr_bare['Tp'] * np.exp(-alpha * p_len))
+        / (1 - (sub_ref['Rp'] * fr_bare['Rp'] * np.exp(-2 * alpha * p_len)))
+    )
     spec['T'] = (spec['Ts'] + spec['Tp']) / 2
 
     return spec
