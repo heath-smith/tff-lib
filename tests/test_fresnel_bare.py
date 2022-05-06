@@ -1,6 +1,5 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
-
 """
 This module contains the test suite for
 the fresnel_bare() method.

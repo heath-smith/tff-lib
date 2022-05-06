@@ -1,11 +1,8 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
-
 """
-This module contains the test class for the
+This module contains the test suite for the
 char_matrix() method.
-
-Execute tests from top-level package directory.
 
 Examples
 ---------

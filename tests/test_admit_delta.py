@@ -1,16 +1,12 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
-
 """
-This module contains the test class for the
+This module contains the test suite for the
 admit_delta() method.
-
-Execute tests from top-level package directory.
 
 Examples
 ---------
->>> python -m unittest tests.test_admit_delta
->>> python -m unittest tests.test_admit_delta.<method>
+>>> python -m unittest -v tests.test_admit_delta
 """
 
 # import external packages
