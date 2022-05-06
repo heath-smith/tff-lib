@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-This module contains the test suite for tff_lib.effective_index().
-
-
+This module contains the test suite for utils.path_len()
 Examples
 ---------
->>> python -m unittest -v tests.test_effective_index
+>>> python -m unittest -v tests.test_path_length
 """
 
 # import external packages
@@ -19,12 +17,12 @@ import sys
 import os
 import json
 
-# import tff_lib for testing
-from tff_lib.tff_lib import effective_index
+# import function to test
+from tff_lib.utils import path_length
 
-class TestEffectiveIndex(unittest.TestCase):
+class TestPathLength(unittest.TestCase):
     """
-    Test class for effective_index()
+    Test class for utils.path_length()
     """
 
     @classmethod
@@ -41,24 +39,26 @@ class TestEffectiveIndex(unittest.TestCase):
         with open(os.path.join(cls.dir, 'test_data.json')) as dat:
             cls.test_data = json.load(dat)
 
-        # get test substrate array
-        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex)
-        cls.test_theta = 0
-        cls.test_exp = np.asarray(cls.test_data['output']['effective_index']).astype(np.complex)
+        # get the test input data
+        cls.test_thick = float(cls.test_data['input']['sub_thick'])
+        cls.test_med = np.ones(np.shape(cls.test_data['input']['wv'])).astype(np.complex)
+        cls.test_sub_eff = np.asarray(cls.test_data['output']['effective_index'])
+        cls.test_theta = 0.0
+        cls.test_exp = np.asarray(cls.test_data['output']['path_length'])
 
         # floating point comparison threshold
         cls.precision = 14
 
-    def test_effective_index(self):
+    def test_path_length(self):
         """
         ----------> default test case
         """
 
-        # test effective_index()
-        _eff = effective_index(self.test_sub, self.test_theta)
+        # test path_length()
+        _len = path_length(self.test_thick, self.test_med, self.test_sub_eff, self.test_theta)
 
         # verify the output
-        nptest.assert_array_almost_equal(self.test_exp, _eff, decimal=self.precision)
+        nptest.assert_array_almost_equal(self.test_exp, _len, decimal=self.precision)
 
     @classmethod
     def tearDownClass(cls):
@@ -66,7 +66,7 @@ class TestEffectiveIndex(unittest.TestCase):
         Cleans up any open resources.
         """
 
-        sys.stdout.write('Running teardown procedure...\nDONE!')
+        sys.stdout.write('\nRunning teardown procedure...\nDONE!')
         sys.stdout.close()
 
 if __name__=='__main__':

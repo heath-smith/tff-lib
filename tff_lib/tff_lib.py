@@ -378,34 +378,6 @@ def effective_index(
     return np.sqrt(inside2)
 
 
-def path_length(sub_thick, i_n, sn_eff, theta, units='rad'):
-    """
-    Calculates the optical path length through a given substrate.
-
-    Parameters
-    -------------
-    *args:\n
-    sub_thick (float):\n
-    theta (float):
-
-    **kwargs: (optional)\n
-    units (str):
-
-    Returns
-    ------------
-    (float) Length of the path through the substrate.
-    """
-
-    if units == 'deg':
-        # convert incident angle from degrees to radians
-        theta = theta * (np.pi / 180)
-
-    len_path = ((sub_thick * (10**6))
-            / np.sqrt(1 - (np.abs(i_n)**2
-            * (np.sin(theta)**2) / sn_eff**2)))
-    len_path = len_path
-
-    return len_path
 
 
 def incident_reflection(*args, **kwargs):

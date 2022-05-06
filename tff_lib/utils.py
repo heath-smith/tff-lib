@@ -5,6 +5,7 @@ tff_lib package.
 
 # import dependencies
 import numpy as np
+from typing import Union
 
 def convert_to_numpy(data:dict, is_complex:bool=False) -> dict:
     """
@@ -63,4 +64,39 @@ def film_matrix(layers:list, high:np.ndarray, low:np.ndarray) -> np.ndarray:
             films[i, :] = low
 
     return films
+
+
+def path_length(
+    sub_thick:Union[int, float], med:np.ndarray, sub_n_eff:np.ndarray,
+    theta:Union[int, float], units:str='rad') -> np.ndarray:
+    """
+    Calculates the estimated optical path length
+    through a given substrate.
+
+    Parameters
+    -------------
+    sub_thick = thickness of substrate in (mm).\n
+    med = refractive index of incident medium.\n
+    sub_n_eff = effective refractive index of substrate.\n
+    theta = angle of incidence.\n
+    units = 'rad' or 'deg'.
+
+    Raises
+    -------------
+    TypeError, ValueError
+
+    Returns
+    ------------
+    (np.ndarray) Length of the path through the substrate.
+    """
+
+    # convert incident angle from degrees to radians
+    theta = theta * (np.pi / 180) if units == 'deg' else theta
+
+    # calculate the numerator and denominator
+    num = sub_thick * (10**6)
+    den = np.sqrt(1 - (np.abs(med)**2 * (np.sin(theta)**2) / sub_n_eff**2))
+
+    # return the path length
+    return num / den
 
