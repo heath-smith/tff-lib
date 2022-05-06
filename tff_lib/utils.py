@@ -65,6 +65,41 @@ def film_matrix(layers:list, high:np.ndarray, low:np.ndarray) -> np.ndarray:
 
     return films
 
+def effective_index(
+    sub:np.ndarray, theta:Union[int, float], units:str='rad') -> np.ndarray:
+    """
+    Calculates the effective substrate refractive index for abs. substrates.
+
+    Parameters
+    -----------
+    sub = complex refractive index of substrate.\n
+    theta =
+    units =
+
+    Returns
+    ----------
+    (np.ndarray) Effective substrate refractive index.
+    """
+
+    # check data types
+    if not isinstance(sub, np.ndarray):
+        raise TypeError(f'"sub" expects <np.ndarray>, received {type(sub)}.')
+    if not type(theta) in (int, float):
+        raise TypeError(f'"theta" expects <int> or <float>, received {type(theta)}.')
+    if not isinstance(units, str):
+        raise TypeError(f'"units" expects <str>, received {type(units)}.')
+    if units not in ('deg', 'rad'):
+        raise ValueError(f'"units" expects "deg" or "rad", received {units}.')
+
+    # convert incident angle from degrees to radians
+    theta = theta * (np.pi / 180) if units == 'deg' else theta
+
+    # calculate the effective substrate refractive index
+    inside1 = ((np.imag(sub)**2 + np.real(sub)**2)**2 + 2 * (np.imag(sub) - np.real(sub))
+                * (np.imag(sub) + np.real(sub)) * np.sin(theta)**2 + np.sin(theta)**4)
+    inside2 = 0.5 * (-np.imag(sub)**2 + np.real(sub)**2 + np.sin(theta)**2 + np.sqrt(inside1))
+
+    return np.sqrt(inside2)
 
 def path_length(
     sub_thick:Union[int, float], med:np.ndarray, sub_n_eff:np.ndarray,

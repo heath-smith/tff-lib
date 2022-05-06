@@ -20,7 +20,7 @@ import os
 import json
 
 # import tff_lib for testing
-from tff_lib.tff_lib import effective_index
+from tff_lib.utils import effective_index
 
 class TestEffectiveIndex(unittest.TestCase):
     """
