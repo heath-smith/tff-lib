@@ -94,16 +94,16 @@ class TestFilSpec(unittest.TestCase):
             self.test_exp['Rp'], _filspec['Rp'], decimal=self.precision, verbose=True)
 
         # plot the output
-        ### plot_var = 'R'
-        ### plt.figure(figsize=(12, 6))
-        ### plt.plot(self.test_wv, self.test_exp[plot_var], label="Expected")
-        ### plt.plot(self.test_wv, _filspec[plot_Var], label="Calculated")
-        ### plt.title("Test Results")
-        ### plt.xlabel("Wavelength (nm)")
-        ### plt.ylabel("Values")
-        ### plt.legend(loc="lower right")
-        ### plt.tight_layout()
-        ### plt.show()
+        ## plot_var = 'T'
+        ## plt.figure(figsize=(12, 6))
+        ## plt.plot(self.test_wv, self.test_exp[plot_var], label="Expected")
+        ## plt.plot(self.test_wv, _filspec[plot_var], label="Calculated")
+        ## plt.title("Test Results")
+        ## plt.xlabel("Wavelength (nm)")
+        ## plt.ylabel("Values")
+        ## plt.legend(loc="lower right")
+        ## plt.tight_layout()
+        ## plt.show()
 
     @classmethod
     def tearDownClass(cls):
