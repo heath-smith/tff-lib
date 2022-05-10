@@ -63,7 +63,7 @@ class TestFilSpec(unittest.TestCase):
         )
 
         # threshold for floating point comparison
-        cls.precision = 2
+        cls.precision = 12
 
         # get expected results
         cls.test_exp = convert_to_numpy(cls.test_data['output']['filspec'])

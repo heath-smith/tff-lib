@@ -12,7 +12,6 @@ To install via pip:
 import numpy as np
 from typing import Union
 from tff_lib import utils
-import sys
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -413,9 +412,40 @@ def fil_spec(
     # reflection originates from substrate
     theta_inv = np.arcsin(med / sub * np.sin(theta))
     layers_inv = [(str(v[0]), float(v[1])) for v in np.flipud(layers)]
-    sub_adm = admit_delta(layers_inv, waves, sub, med, np.flipud(films), theta_inv)
-    sub_char = char_matrix(sub_adm['ns_film'], sub_adm['np_film'], sub_adm['delta'])
+    sub_adm = admit_delta(layers_inv, waves, sn_eff, med, np.flipud(films), theta_inv)
+    sub_char = char_matrix(sub_adm['ns_film'], sub_adm['np_film'], np.flipud(sub_adm['delta']))
     sub_ref = fresnel_film(sub_adm, sub_char)
+
+    ### df = pd.read_excel(r'C:\Users\hsmith\Downloads\Dow_MOE_Rev5_IOvalues.xlsx', sheet_name=3)
+    ### test_delta = np.array([
+    ###     df['delta'],
+    ###     df['delta.1'],
+    ###     df['delta.2'],
+    ###     df['delta.3'],
+    ###     df['delta.4'],
+    ###     df['delta.5'],
+    ###     df['delta.6'],
+    ###     df['delta.7'],
+    ###     df['delta.8'],
+    ### ])
+    ### test_sub_char = {}
+    ### for k in sub_char.keys():
+    ###     temp = [complex(s.replace(' ', '').replace('i', 'j')) for s in df[k].values.tolist()]
+    ###     test_sub_char[k] = np.asarray(temp)
+    ### nptest.assert_almost_equal(test_sub_char['S11'], sub_char['S11'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['S12'], sub_char['S12'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['S21'], sub_char['S21'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['S22'], sub_char['S22'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['P11'], sub_char['P11'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['P12'], sub_char['P12'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['P21'], sub_char['P21'], decimal=13, verbose=2)
+    ### nptest.assert_almost_equal(test_sub_char['P22'], sub_char['P22'], decimal=13, verbose=2)
+    ### nptest.assert_array_almost_equal(test_delta, sub_adm['delta'], decimal=13)
+    ### plt.figure(figsize=(8, 8))
+    ### plt.plot(np.real(med_ref['rs']), np.imag(med_ref['rs']), label="Med rs")
+    ### plt.plot(np.real(sub_ref['rs']), np.imag(sub_ref['rs']), label="Sub rs")
+    ### plt.legend(loc='lower right')
+    ### plt.show()
 
     # calculate filter reflection
     spec = {'Rs': (
