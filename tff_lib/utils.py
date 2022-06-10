@@ -37,7 +37,7 @@ def convert_to_numpy(data:dict, is_complex:bool=False) -> dict:
     output = {}
     for k, v in data.items():
         if isinstance(v, list):
-            output[k] = np.asarray(v).astype(np.complex) if is_complex else np.asarray(v)
+            output[k] = np.asarray(v).astype(np.complex128) if is_complex else np.asarray(v)
         else:
             output[k] = v
 

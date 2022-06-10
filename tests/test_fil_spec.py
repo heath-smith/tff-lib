@@ -17,6 +17,7 @@ import sys
 import os
 import json
 import matplotlib.pyplot as plt
+import time
 
 # import function to test
 from tff_lib.tff_lib import fil_spec
@@ -50,8 +51,8 @@ class TestFilSpec(unittest.TestCase):
         # -- define array comparison threshold
         # -- film refractive indices
         cls.test_wv = np.asarray(cls.test_data['input']['wv'])
-        cls.test_med = np.ones(np.shape(cls.test_data['input']['wv'])).astype(np.complex)
-        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex)
+        cls.test_med = np.ones(np.shape(cls.test_data['input']['wv'])).astype(np.complex128)
+        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex128)
         cls.test_theta = 0.0
         cls.test_layers = [tuple(v) for v in cls.test_data['input']['layers']]
         cls.test_exp = convert_to_numpy(cls.test_data['output']['admit_delta'], is_complex=True)
@@ -74,10 +75,18 @@ class TestFilSpec(unittest.TestCase):
         ---------> default test case
         """
 
+        # time the execution
+        start = time.perf_counter()
+
         # test fil_spec()
         _filspec = fil_spec(
             self.test_wv, self.test_sub, self.test_med, self.test_films,
             self.test_layers, self.test_sub_thick, self.test_theta)
+
+        # end time
+        end = time.perf_counter()
+        t = (end - start)
+        sys.stdout.write(f"\nElapsed Time= {round(t, 4)} seconds.\n")
 
         # verify the output
         nptest.assert_almost_equal(

@@ -17,7 +17,9 @@ from pathlib import Path
 import sys
 import os
 import json
-import warnings
+import time
+import pyopencl as cl
+
 
 # import function to test
 from tff_lib.tff_lib import char_matrix
@@ -55,9 +57,16 @@ class TestCharMatrix(unittest.TestCase):
         """
         ----------> default test case
         """
+        # time the execution
+        start = time.perf_counter()
 
         # test the char_matrix()
         _cmat = char_matrix(self.test_nsfilm, self.test_npfilm, self.test_delta)
+
+        # end time
+        end = time.perf_counter()
+        t = (end - start)
+        sys.stdout.write(f"\nElapsed Time= {round(t, 4)} seconds.\n")
 
         # verify the output
         nptest.assert_array_almost_equal(self.test_exp['S11'], _cmat['S11'], decimal=self.precision)
@@ -68,8 +77,6 @@ class TestCharMatrix(unittest.TestCase):
         nptest.assert_array_almost_equal(self.test_exp['P12'], _cmat['P12'], decimal=self.precision)
         nptest.assert_array_almost_equal(self.test_exp['P21'], _cmat['P21'], decimal=self.precision)
         nptest.assert_array_almost_equal(self.test_exp['P22'], _cmat['P22'], decimal=self.precision)
-
-
 
 
     def test_char_matrix_errors(self):
@@ -92,6 +99,7 @@ class TestCharMatrix(unittest.TestCase):
         with self.assertRaises(ValueError):
             wrong_npfilm = np.append(self.test_npfilm, 0)
             char_matrix(self.test_nsfilm, wrong_npfilm, self.test_delta)
+
 
     @classmethod
     def tearDownClass(cls):

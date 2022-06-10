@@ -17,6 +17,7 @@ from pathlib import Path
 import sys
 import os
 import json
+import time
 
 # import tff_lib for testing
 from tff_lib.tff_lib import fresnel_bare
@@ -56,9 +57,16 @@ class TestFresnelBare(unittest.TestCase):
         """
         ----------> default test case
         """
+        # time the execution
+        start = time.perf_counter()
 
         # test fresnel_bare() with no 'units' arg
         _fb = fresnel_bare(self.test_sub, self.test_med, self.test_theta)
+
+        # end time
+        end = time.perf_counter()
+        t = (end - start)
+        sys.stdout.write(f"\nElapsed Time= {round(t, 4)} seconds.\n")
 
         # verify the output
         nptest.assert_array_almost_equal(self.test_exp['Ts'], _fb['Ts'], decimal=self.precision)
