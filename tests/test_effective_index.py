@@ -42,9 +42,9 @@ class TestEffectiveIndex(unittest.TestCase):
             cls.test_data = json.load(dat)
 
         # get test substrate array
-        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex)
+        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex128)
         cls.test_theta = 0
-        cls.test_exp = np.asarray(cls.test_data['output']['effective_index']).astype(np.complex)
+        cls.test_exp = np.asarray(cls.test_data['output']['effective_index']).astype(np.complex128)
 
         # floating point comparison threshold
         cls.precision = 14

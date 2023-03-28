@@ -18,8 +18,6 @@ import sys
 import os
 import json
 import time
-import pyopencl as cl
-
 
 # import function to test
 from tff_lib.tff_lib import char_matrix

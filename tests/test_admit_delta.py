@@ -49,8 +49,8 @@ class TestAdmitDelta(unittest.TestCase):
         # -- define array comparison threshold
         # -- film refractive indices
         cls.test_wv = np.asarray(cls.test_data['input']['wv'])
-        cls.test_med = np.ones(np.shape(cls.test_data['input']['wv'])).astype(np.complex)
-        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex)
+        cls.test_med = np.ones(np.shape(cls.test_data['input']['wv'])).astype(np.complex128)
+        cls.test_sub = np.asarray(cls.test_data['input']['substrate']).astype(np.complex128)
         cls.test_theta = 0.0
         cls.test_layers = [tuple(v) for v in cls.test_data['input']['layers']]
         cls.test_exp = convert_to_numpy(cls.test_data['output']['admit_delta'], is_complex=True)
