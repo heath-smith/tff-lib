@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tff_lib"
+authors = [
+    {name = "Ryan Priore", email = "rpriore@thorlabs.com"},
+    {name = "Heath Smith", email = "hsmith@thorlabs.com"},
+]
+description = "Thin film filter computational tools."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["thin films", "optical", "filters"]
+license = {text = "Not Licensed"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    'matplotlib',
+    'numpy',
+    'pyopencl',
+]
+dynamic = ["version"]
+
+[project.urls]
+homepage = 'https://ThorlabsSpectralWorks@dev.azure.com/ThorlabsSpectralWorks/tff_lib/_git/tff_lib'
+
+# setuptools specific settings
+[tool.setuptools]
+zip-safe = false
+packages = ["tff_lib"]
+
+# ... other project metadata fields as specified in:
+#     https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+#
+

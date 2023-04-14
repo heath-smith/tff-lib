@@ -10,10 +10,8 @@ To install via pip:
 
 # import external packages
 import numpy as np
-import os
 from typing import Union
 from tff_lib import utils
-import pyopencl as cl
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -89,7 +87,6 @@ def fresnel_bare(
         'rs': r_s,               # S-polarized fresnel Amplitude Coefficient
         'rp': r_p                # P-polarized fresnel Amplitude Coefficient
     }
-
 
 def admit_delta(
     layers:list, waves:np.ndarray, sub:np.ndarray, med:np.ndarray,
@@ -276,7 +273,6 @@ def char_matrix(ns_film:np.ndarray, np_film:np.ndarray, delta:np.ndarray) -> dic
     return {'S11':S11, 'S12':S12, 'S21':S21, 'S22':S22,
         'P11':P11, 'P12':P12, 'P21':P21, 'P22':P22}
 
-
 def fresnel_film(admittance:dict, char_matrix:dict) -> dict:
     """
     Calculates the fresnel amplitudes & intensities of film. Requires
@@ -339,7 +335,6 @@ def fresnel_film(admittance:dict, char_matrix:dict) -> dict:
     fresnel['Tp'] = np.real(admittance['np_sub'] / admittance['np_inc']) * np.abs(fresnel['tp'])**2
 
     return fresnel
-
 
 def fil_spec(
     waves:np.ndarray, sub:np.ndarray, med:np.ndarray, films:np.ndarray, layers:list,

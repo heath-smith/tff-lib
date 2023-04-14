@@ -1,11 +1,10 @@
+#!/usr/bin/env python
+"""
+This script provides a shim for setuptools which is needed
+for local editable installations.
+"""
+
 from setuptools import setup
 
-setup(name='tff_lib',
-      version='2.0.3',
-      description='Thin Film Filter Library',
-      url='https://ThorlabsSpectralWorks@dev.azure.com/ThorlabsSpectralWorks/tff_lib/_git/tff_lib',
-      author='Ryan Priore, Heath Smith',
-      author_email='rpriore@thorlabs.com, hsmith@thorlabs.com',
-      license='MIT',
-      packages=['tff_lib', 'scripts', 'tests'],
-      zip_safe=False)
+if __name__ == "__main__":
+    setup()
