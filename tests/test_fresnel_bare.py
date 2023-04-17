@@ -20,7 +20,7 @@ import json
 import time
 
 # import tff_lib for testing
-from tff_lib.tff_lib import fresnel_bare
+from tff_lib.utils import fresnel_bare
 
 class TestFresnelBare(unittest.TestCase):
     """

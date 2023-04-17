@@ -20,7 +20,7 @@ import json
 import time
 
 # import function to test
-from tff_lib.tff_lib import char_matrix
+from tff_lib.utils import char_matrix
 from tff_lib.utils import convert_to_numpy
 
 class TestCharMatrix(unittest.TestCase):

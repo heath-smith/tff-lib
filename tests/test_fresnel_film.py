@@ -20,7 +20,7 @@ import os
 import json
 
 # import function to test
-from tff_lib.tff_lib import fresnel_film
+from tff_lib.utils import fresnel_film
 from tff_lib.utils import convert_to_numpy
 
 class TestFresnelFilm(unittest.TestCase):

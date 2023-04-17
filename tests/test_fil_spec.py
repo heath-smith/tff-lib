@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import time
 
 # import function to test
-from tff_lib.tff_lib import fil_spec
+from tff_lib.utils import fil_spec
 from tff_lib.utils import film_matrix, convert_to_numpy, plot_data
 
 class TestFilSpec(unittest.TestCase):

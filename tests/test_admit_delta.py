@@ -19,7 +19,7 @@ import os
 import json
 
 # import function to test
-from tff_lib.tff_lib import admit_delta
+from tff_lib.utils import admit_delta
 from tff_lib.utils import film_matrix, convert_to_numpy
 
 class TestAdmitDelta(unittest.TestCase):

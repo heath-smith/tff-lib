@@ -13,7 +13,7 @@ python test_script.py
 """
 
 # import tff_lib for testing
-from tff_lib.tff_lib import ThinFilmFilter as tff
+from tff_lib.utils import ThinFilmFilter as tff
 
 # import pandas to read from csv
 import pandas as pd
