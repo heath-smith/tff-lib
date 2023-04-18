@@ -4,7 +4,7 @@ to describe thin films and film stacks.
 """
 
 # import dependencies
-from typing import SupportsIndex, Iterable, Self, Dict, Tuple
+from typing import SupportsIndex, Iterable, Dict, Tuple
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
 
@@ -54,7 +54,7 @@ class ThinFilm():
         self.wavelengths = [float(x) for x in wavelengths]
         self.ref_index = [complex(y) for y in ref_index]
 
-    def __add__(self, film:'ThinFilm') -> Self:
+    def __add__(self, film:'ThinFilm'):
         """
         Adds thickness values of two thin films. Must have matching
         wavelengths, refractive indices, and material attributes.
@@ -71,7 +71,7 @@ class ThinFilm():
 
         return type(self)(self.material, self.thickness, self.wavelengths, self.ref_index)
 
-    def __sub__(self, film:'ThinFilm') -> Self:
+    def __sub__(self, film:'ThinFilm'):
         """
         Subtracts thickness values of two thin films. Must have matching
         wavelengths, refractive indices, and material attributes.
