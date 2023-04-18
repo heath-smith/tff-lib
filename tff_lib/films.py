@@ -7,6 +7,7 @@ to describe thin films and film stacks.
 from typing import SupportsIndex, Iterable, Dict, Tuple
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
+from .substrate import Substrate
 
 class ThinFilm():
     """
@@ -254,85 +255,31 @@ class FilmStack():
         """
         return list(reversed(self.layers))
 
-    def admittance(self, inc_medium:ArrayLike, theta:float) -> Tuple:
-        """
-        Calculate admittances of thin film stack.
-
-        Parameters
-        -------------
-        inc_medium: ArrayLike, refractive indices of incident medium
-        theta: float, angle of incidence of radiation in radians
-
-        Returns
-        ----------
-        (Tuple) (s-polarized admittance of the film stack,
-        p-polarized admittance of the film stack,
-        phase upon reflection for each film)
-
-
-        References
-        ----------
-        https://www.svc.org/DigitalLibrary/documents/2008_Summer_AMacleod.pdf
-        """
-
-        dialec_med = [m**2 for m in inc_medium]
-        dialec_films = [film**2 for film in self.get_matrix()]
-
-        # Calculate admittances & phase factors for each layer
-        admit_s = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        admit_p = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        delta = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-
-        # iterate each layer in thin film stack
-        for i, lyr in enumerate(self.layers):
-            admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
-            admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
-            delta[i, :] = (2 * np.pi * lyr.thickness * np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
-
-        # Flip layer-based arrays ns_film, np_film, delta
-        # since the last layer is the top layer
-        admit_s = np.flipud(admit_s)
-        admit_p = np.flipud(admit_p)
-        delta = np.flipud(delta)
-
-        return admit_s, admit_p, delta
-
-    def characteristic_matrix(self, ns_film:ArrayLike, np_film:ArrayLike, delta:ArrayLike) -> Dict:
+    def characteristic_matrix(
+            self, ns_film:ArrayLike, np_film:ArrayLike, delta:ArrayLike) -> Dict[str, NDArray]:
         """
         Calculates the characteristic matrix for a thin film stack.
 
         Parameters
         -----------
-        ns_film = s-polarized admittance of the film stack layers.\n
-        np_film = p-polarized admittance of the film stack layers.\n
-        delta = phase upon reflection for each film.
+        ns_film: ArrayLike, s-polarized admittance of the film stack layers.
+        np_film: ArrayLike, p-polarized admittance of the film stack layers.
+        delta: ArrayLike, phase upon reflection for each film.
 
         Returns
         ------------
-        (Dict) characteristic matrix\n
-        { S11 (array): matrix entry\n
-        S12 (array): matrix entry\n
-        S21 (array): matrix entry\n
-        S22 (array): matrix entry\n
-        P11 (array): matrix entry\n
-        P12 (array): matrix entry\n
-        P21 (array): matrix entry\n
-        P22 (array): matrix entry }
-
-        Raises
-        --------------
-        ValueError if dimensions of ns_film, np_film, and delta do not match.
-        TypeError if array types are not float.
-        TypeError if arrays are not numpy.ndarray type.
-
-        Examples
-        ------------
-        >>> char_matrix = c_mat(nsFilm, npFilm, delta)
+        Dict[str, NDArray] {
+            'S11': matrix entry,
+            'S12': matrix entry,
+            'S21': matrix entry,
+            'S22': matrix entry,
+            'P11': matrix entry,
+            'P12': matrix entry,
+            'P21': matrix entry,
+            'P22': matrix entry }
         """
 
-        # validate the input array shapes
-        if not ns_film.shape == np_film.shape:
-            raise ValueError(f'shape mismatch -----> {ns_film.shape} != {np_film.shape}.')
+
 
         # Calculation of the characteristic matrix elements
         # shape of 'delta' is (N-layers X len(wavelength range))
@@ -429,96 +376,3 @@ class FilmStack():
         fresnel['Tp'] = np.real(admit_p_sub / admit_p_inc) * np.abs(fresnel['tp'])**2
 
         return fresnel
-
-    def get_spectrum(self,
-        waves:ArrayLike, sub:ArrayLike, med:ArrayLike, films:ArrayLike, layers:list,
-        sub_thick:int|float, theta:int|float, units:str='rad') -> Dict:
-        """
-        Calculates the transmission and reflection spectra of a
-        thin-film interference filter.
-
-        Parameters
-        ------------
-        waves =
-        sub =
-        med =
-        high =
-        low =
-        films =
-        layers =
-        sub_thick =
-        theta =
-        units =
-
-        Returns
-        -----------
-        (Dict) transmission and reflection value arrays\n
-        { 'T' : average transmission spectrum over wavelength range ([Tp + Ts] / 2),\n
-        'Ts' : s-polarized transmission spectrum wavelength range,\n
-        'Tp' : p-polarized transmission spectrum over wavelength range,\n
-        'R' : average reflection spectrum over wavelength range,\n
-        'Rs' : s-polarized reflection spectrum over wavelength range,\n
-        'Rp' : p-polarized reflection spectrum over wavelength range }
-
-        Raises
-        -------------
-        ValueError, TypeError
-
-        See Also
-        -------------
-        utils.sub_n_eff()
-        utils.path_len()
-        utils.film_matrix()
-        """
-
-        # convert incident angle from degrees to radians
-        theta = theta * (np.pi / 180) if units == 'deg' else theta
-
-        # calculate effective substrate refractive index
-        sn_eff = utils.effective_index(sub, theta)
-
-        # Calculate the path length through the substrate
-        p_len = utils.path_length(sub_thick, med, sn_eff, theta)
-
-        # Fresnel Amplitudes & Intensities
-        # incident medium / substrate interface
-        fr_bare = fresnel_bare(sub, med, theta)
-
-        # reflection originates from incident medium
-        med_adm = admit_delta(layers, waves, sub, med, films, theta)
-        med_char = char_matrix(med_adm['ns_film'], med_adm['np_film'], med_adm['delta'])
-        med_ref = fresnel_film(med_adm, med_char)
-
-        # reflection originates from substrate
-        theta_inv = np.arcsin(med / sub * np.sin(theta))
-        layers_inv = [(str(v[0]), float(v[1])) for v in np.flipud(layers)]
-        sub_adm = admit_delta(layers_inv, waves, sn_eff, med, np.flipud(films), theta_inv)
-        sub_char = char_matrix(sub_adm['ns_film'], sub_adm['np_film'], np.flipud(sub_adm['delta']))
-        sub_ref = fresnel_film(sub_adm, sub_char)
-
-        # calculate the absorption coefficient for multiple reflections
-        alpha = (4 * np.pi * np.imag(sub)) / waves
-
-        # calculate filter reflection
-        spec = {'Rs': (
-            med_ref['Rs'] + ((med_ref['Ts']**2) * fr_bare['Rs'] * np.exp(-2 * alpha * p_len))
-            / (1 - (sub_ref['Rs'] * fr_bare['Rs'] * np.exp(-2 * alpha * p_len)))
-        )}
-        spec['Rp'] = (
-            med_ref['Rp']  + ((med_ref['Tp']**2)  * fr_bare['Rp'] * np.exp(-2 * alpha * p_len))
-            / (1 - (sub_ref['Rp']  * fr_bare['Rp'] * np.exp(-2 * alpha * p_len)))
-        )
-        spec['R'] = (spec['Rs'] + spec['Rp']) / 2
-
-        # calculate filter transmission
-        spec['Ts'] = (
-            (med_ref['Ts'] * fr_bare['Ts'] * np.exp(-alpha * p_len))
-            / (1 - (sub_ref['Rs'] * fr_bare['Rs'] * np.exp(-2 * alpha * p_len)))
-        )
-        spec['Tp'] = (
-            (med_ref['Tp'] * fr_bare['Tp'] * np.exp(-alpha * p_len))
-            / (1 - (sub_ref['Rp'] * fr_bare['Rp'] * np.exp(-2 * alpha * p_len)))
-        )
-        spec['T'] = (spec['Ts'] + spec['Tp']) / 2
-
-        return spec
