@@ -9,6 +9,9 @@ import numpy as np
 from numpy.typing import NDArray, ArrayLike
 from .substrate import Substrate
 
+class WritePropertyError(Exception):
+    pass
+
 class ThinFilm():
     """
     Abstract object representing a thin optical film.
@@ -96,21 +99,22 @@ class FilmStack():
     thin films.
     """
 
-    layers = []             # list of thin film layers
-    total_thick = 0         # total thickness in nm
-    num_layers = 0          # number of layers
+    # non-public attributes
+    _stack = []             # list of thin film layers
+
+    # public attributes
     max_total_thick = 0     # maximum total thickness (nanometers)
     max_layers = 0          # max limit for num layers
     first_lyr_min_thick = 0 # first lyr min thickness (nanometers)
     min_thick = 0           # all other layers min thickness (nanometers)
 
-    def __init__(self, layers: Iterable[ThinFilm], **kwargs) -> None:
+    def __init__(self, films: Iterable[ThinFilm], **kwargs) -> None:
         """
         Initialize class and set attributes
 
         args
         ----------
-        layers: Iterable, ThinFilms to be used in the film stack
+        films: Iterable[ThinFilm], thin film layer to be used in the film stack
 
         kwargs
         ----------
@@ -121,7 +125,7 @@ class FilmStack():
 
         See Also
         ----------
-        films.ThinFilm()
+        >>> class ThinFilm()
         """
 
         max_total_thick = kwargs.get('max_total_thick', 20_000)
@@ -130,8 +134,8 @@ class FilmStack():
         min_thick = kwargs.get('min_thick', 10)
 
         # validate inputs
-        if len(layers) < 1:
-            raise ValueError("layers must have at least 1 value.")
+        if len(films) < 1:
+            raise ValueError("films must have at least 1 value.")
         if max_total_thick <= 0:
             raise ValueError("max_total_thick must be greater than 0.")
         if first_lyr_min_thick <= 0:
@@ -141,33 +145,93 @@ class FilmStack():
         if max_layers <= 0:
             raise ValueError("max_layers must be greater than 0.")
 
-        self.layers = layers
+        # set properties (managed-attributes)
+        self._stack = films
+        self._total_thick = self.total_thick
+        self._num_layers = len(self._layers)
+
+        # set attributes (un-managed)
         self.max_total_thick = float(max_total_thick)
         self.max_layers = int(max_layers)
         self.first_lyr_min_thick = float(first_lyr_min_thick)
-        self.min_thick = min_thick
+        self.min_thick = float(min_thick)
 
-        # update num_layers, total_thick
-        self.get_total_thick()
-        self.num_layers = len(self.layers)
+    @property
+    def total_thick(self):
+        """
+        Property/Managed Attribute - float, total thickness of the
+        stack in nanometers. (Read Only)
+        """
+        return np.sum([lyr.thickness for lyr in self._stack])
+
+    @total_thick.setter
+    def total_thick(self, val):
+        raise WritePropertyError("total_thick is a read-only property")
+
+    @property
+    def num_layers(self) -> int:
+        """
+        Property/Managed Attribute - int, number of thin film layers
+        in stack. (Read Only)
+        """
+        return len(self._stack)
+
+    @num_layers.setter
+    def num_layers(self, val):
+        raise WritePropertyError("num_layers is a read-only property")
+
+    @property
+    def layers(self) -> Iterable[float]:
+        """
+        Property - Iterable[float], the layer thickness values.
+        """
+        return [lyr.thickness for lyr in self._stack]
+
+    @layers.setter
+    def layers(self, lyrs:Iterable[float]):
+        if not len(self._stack) == len(lyrs):
+            raise ValueError("lyrs must have same length as 'stack' property")
+        for i, film in enumerate(self._stack):
+            film.thickness = lyrs[i]
+
+    @property
+    def matrix(self) -> NDArray:
+        """
+        Property - numpy.NDArray, a matrix of each film's refractive indices.
+        """
+        matrix = np.zeros((len(self._stack), len(self._stack[0].ref_index)))
+
+        for i, lyr in enumerate(self._stack):
+            matrix[i, :] = lyr
+
+        return matrix
+
+    @property
+    def stack(self) -> Iterable[ThinFilm]:
+        """
+        Property - Iterable[ThinFilm], the stack of thin films.
+        """
+        return self._stack
+
+    @stack.setter
+    def stack(self, films:Iterable[ThinFilm]):
+        if len(films) < 1:
+            raise ValueError("film stack must contain at least 1 layer")
+        self._stack = films
 
     def insert_layer(self, layer: ThinFilm, index: SupportsIndex) -> None:
         """
         Insert a new thin film layer before index.
         Updates num_layers and total_thick attributes.
         """
-        self.layers.insert(index, layer)
-        self.num_layers = len(self.layers)
-        self.get_total_thick()
+        self._stack.insert(index, layer)
 
     def append_layer(self, layer: ThinFilm) -> None:
         """
         Appends a new thin film layer to end of stack.
         Updates num_layers and total_thick attributes.
         """
-        self.layers.append(layer)
-        self.num_layers = len(self.layers)
-        self.get_total_thick()
+        self._stack.append(layer)
 
     def remove_layer(self, index: SupportsIndex = -1) -> ThinFilm:
         """
@@ -180,18 +244,14 @@ class FilmStack():
         if 0 < index < self.num_layers - 1:
 
             # add surrounding layers
-            new_lyr = self.layers[index - 1] + self.layers[index + 1]
+            new_lyr = self._stack[index - 1] + self._stack[index + 1]
             # update layer at (index - 1)
-            self.layers[index - 1] = new_lyr
+            self._stack[index - 1] = new_lyr
             # pop layers at (index + 1)
-            self.layers.pop(index + 1)
+            self._stack.pop(index + 1)
 
         # pop layer at index
-        lyr = self.layers.pop(index)
-
-        # update num_layers and total_thickness
-        self.num_layers = len(self.layers)
-        self.get_total_thick()
+        lyr = self._stack.pop(index)
 
         return lyr
 
@@ -199,72 +259,59 @@ class FilmStack():
         """
         Return layer at index. Does not alter layer stack.
         """
-        return self.layers[index]
+        return self._stack[index]
 
-    def get_total_thick(self) -> float:
+    def admittance(self, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
         """
-        Calculates total thickness of the stack in nanometers.
-        """
+        Calculate admittances of thin film filter.
 
-        # reset total_thick
-        self.total_thick = 0
-
-        # iterate films in layers
-        for lyr in self.layers:
-            self.total_thick += lyr.thickness
-
-        return self.total_thick
-
-    def get_matrix(self) -> NDArray:
-        """
-        Returns a matrix of thin film refractive indices.
+        Parameters
+        -------------
+        inc_medium: ArrayLike, refractive indices of incident medium
+        theta: float, angle of incidence of radiation in radians
 
         Returns
         ----------
-        numpy.ArrayLike, (N x M) matrix with thin film refractive indices of
-            shape (num_layers x len(film.ref_index))
-        """
+        Dict[str, NDArray] {
+            's': s-polarized admittance of the film stack,
+            'p': p-polarized admittance of the film stack,
+            'delta': phase upon reflection for each film}
 
-        matrix = np.zeros((len(self.layers), len(self.layers[0].ref_index)))
-
-        for i, lyr in enumerate(self.layers):
-            matrix[i, :] = lyr
-
-        return matrix
-
-    def get_reverse_matrix(self) -> NDArray:
-        """
-        Returns thin film matrix in reverse order.
-
-        See Also
+        References
         ----------
-        >>> FilmStack.get_matrix()
+        https://www.svc.org/DigitalLibrary/documents/2008_Summer_AMacleod.pdf
         """
-        return np.flipud(self.get_matrix())
 
-    def get_stack(self) -> Iterable[ThinFilm]:
-        """
-        Returns a copy of the thin film stack.
-        """
-        return self.layers
+        dialec_med = [m**2 for m in inc_medium]
+        dialec_films = [film**2 for film in self.get_matrix()]
 
-    def get_reverse_stack(self) -> Iterable[ThinFilm]:
-        """
-        Return a copy of the stack in reverse order. Does not mutate
-        the calling instance.
-        """
-        return list(reversed(self.layers))
+        # Calculate admittances & phase factors for each layer
+        admit_s = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
+        admit_p = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
+        delta = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
 
-    def characteristic_matrix(
-            self, ns_film:ArrayLike, np_film:ArrayLike, delta:ArrayLike) -> Dict[str, NDArray]:
+        # iterate each layer in thin film stack
+        for i, lyr in enumerate(self.layers):
+            admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
+            admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
+            delta[i, :] = (2 * np.pi * lyr.thickness * np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
+
+        # Flip layer-based arrays ns_film, np_film, delta
+        # since the last layer is the top layer
+        admit_s = np.flipud(admit_s)
+        admit_p = np.flipud(admit_p)
+        delta = np.flipud(delta)
+
+        return {'s': admit_s, 'p': admit_p, 'delta': delta}
+
+    def characteristic_matrix(self, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
         """
         Calculates the characteristic matrix for a thin film stack.
 
         Parameters
         -----------
-        ns_film: ArrayLike, s-polarized admittance of the film stack layers.
-        np_film: ArrayLike, p-polarized admittance of the film stack layers.
-        delta: ArrayLike, phase upon reflection for each film.
+        inc_medium: ArrayLike, refractive indices of incident medium
+        theta: float, angle of incidence of radiation in radians
 
         Returns
         ------------
@@ -279,31 +326,31 @@ class FilmStack():
             'P22': matrix entry }
         """
 
-
+        admit = self.admittance(inc_medium, theta)
 
         # Calculation of the characteristic matrix elements
         # shape of 'delta' is (N-layers X len(wavelength range))
         elements = {
-            's11': np.cos(delta),
-            's22': np.cos(delta),
-            'p11': np.cos(delta),
-            'p22': np.cos(delta),
-            's12': (1j / ns_film) * np.sin(delta),
-            'p12': (-1j / np_film) * np.sin(delta),
-            's21': (1j * ns_film) * np.sin(delta),
-            'p21': (-1j * np_film) * np.sin(delta)
+            's11': np.cos(admit['delta']),
+            's22': np.cos(admit['delta']),
+            'p11': np.cos(admit['delta']),
+            'p22': np.cos(admit['delta']),
+            's12': (1j / admit['s']) * np.sin(admit['delta']),
+            'p12': (-1j / admit['p']) * np.sin(admit['delta']),
+            's21': (1j * admit['s']) * np.sin(admit['delta']),
+            'p21': (-1j * admit['p']) * np.sin(admit['delta'])
         }
 
         # Initialize the characteristic matrices
         matrices = {
-            'S11': np.ones(np.shape(elements['s11'])[1]).astype(np.complex128),
-            'S12': np.zeros(np.shape(elements['s11'])[1]).astype(np.complex128),
-            'S21': np.zeros(np.shape(elements['s11'])[1]).astype(np.complex128),
-            'S22': np.ones(np.shape(elements['s11'])[1]).astype(np.complex128),
-            'P11': np.ones(np.shape(elements['p11'])[1]).astype(np.complex128),
-            'P12': np.zeros(np.shape(elements['p11'])[1]).astype(np.complex128),
-            'P21': np.zeros(np.shape(elements['p11'])[1]).astype(np.complex128),
-            'P22': np.ones(np.shape(elements['p11'])[1]).astype(np.complex128)
+            'S11': np.ones(np.shape(elements['s11'])[1]),
+            'S12': np.zeros(np.shape(elements['s11'])[1]),
+            'S21': np.zeros(np.shape(elements['s11'])[1]),
+            'S22': np.ones(np.shape(elements['s11'])[1]),
+            'P11': np.ones(np.shape(elements['p11'])[1]),
+            'P12': np.zeros(np.shape(elements['p11'])[1]),
+            'P21': np.zeros(np.shape(elements['p11'])[1]),
+            'P22': np.ones(np.shape(elements['p11'])[1])
         }
 
         for i in range(np.shape(elements['s11'])[0]):
@@ -327,52 +374,3 @@ class FilmStack():
                                 + (_matrices['P22'] * elements['p22'][i, :]))
 
         return matrices
-
-    def fresnel_coefficients(self, admit_sub:Tuple, admit_inc_med:Tuple) -> Dict[str, NDArray]:
-        """
-        Calculates the fresnel amplitudes & intensities of film given the
-        substrate admittance and incident medium admittance.
-
-        Parameters
-        ------------
-        admit_sub: Tuple, substrate admittance (s-polarized, p-polarized)
-        char_matrix: Tuple, incident medium admittance (s-polarized, p-polarized)
-
-        Returns
-        -------------
-        Dict[str, NDArray] {
-            'Ts' : s-polarized Fresnel Transmission Intensity,
-            'Tp' : p-polarized Fresnel Transmission Intensity,
-            'Rs' : s-polarized Fresnel Reflection Intensity,
-            'Rp' : p-polarized Fresnel Reflection Intensity,
-            'ts' : s-polarized Fresnel Transmission Amplitude,
-            'tp' : p-polarized Fresnel Transmission Amplitude,
-            'rs' : s-polarized Fresnel Reflection Amplitude,
-            'rp' : p-polarized Fresnel Reflection Amplitude}
-        """
-        char_matrix = self.characteristic_matrix()
-        admit_s_sub, admit_p_sub = admit_sub
-        admit_s_inc, admit_p_inc = admit_inc_med
-
-        # calculate admittance of the incident interface
-        admit_s_inc_int = ((char_matrix['S21'] - admit_s_sub * char_matrix['S22'])
-                            / (char_matrix['S11'] - admit_s_sub * char_matrix['S12']))
-        admit_p_inc_int = ((char_matrix['P21'] + admit_p_sub * char_matrix['P22'])
-                            / (char_matrix['P11'] + admit_p_sub * char_matrix['P12']))
-
-        # Calculation of the Fresnel Amplitude Coefficients
-        fresnel = {
-            'rs': (admit_s_inc + admit_s_inc_int) / (admit_s_inc - admit_s_inc_int),
-            'rp': (admit_p_inc - admit_p_inc_int) / (admit_p_inc + admit_p_inc_int)}
-        fresnel['ts'] = (
-            (1 + fresnel['rs']) / (char_matrix['S11'] - char_matrix['S12']  * admit_s_sub))
-        fresnel['tp'] = (
-            (1 + fresnel['rp']) / (char_matrix['P11'] + char_matrix['P12'] * admit_p_sub))
-
-        # Calculation of the Fresnel Amplitude Intensities
-        fresnel['Rs'] = np.abs(fresnel['rs'])**2
-        fresnel['Rp'] = np.abs(fresnel['rp'])**2
-        fresnel['Ts'] = np.real(admit_s_sub / admit_s_inc) * np.abs(fresnel['ts'])**2
-        fresnel['Tp'] = np.real(admit_p_sub / admit_p_inc) * np.abs(fresnel['tp'])**2
-
-        return fresnel

@@ -5,6 +5,7 @@ This module contains the ThinFilmFilter class.
 from typing import Dict
 from numpy.typing import ArrayLike, NDArray
 import numpy as np
+from tff_lib import Substrate, FilmStack
 
 class ThinFilmFilter():
     """
@@ -12,81 +13,97 @@ class ThinFilmFilter():
     optical filter.
     """
 
-    substrate = None
-    film_stack = None
-    incident_medium = None
+    substrate = Substrate()
+    film_stack = FilmStack()
+    incident_medium = []
 
-
-    def admittance(self, inc_medium:ArrayLike, theta:float) -> Tuple:
+    def incident_admittance(self, theta:float) -> Dict[str, NDArray]:
         """
-        Calculate admittances of thin film filter.
+        Calculates optical admittance of the incident medium.
 
         Parameters
         -------------
-        inc_medium: ArrayLike, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
-        ----------
-        (Tuple) (s-polarized admittance of the film stack,
-        p-polarized admittance of the film stack,
-        phase upon reflection for each film)
-
-
-        References
-        ----------
-        https://www.svc.org/DigitalLibrary/documents/2008_Summer_AMacleod.pdf
+        --------------
+        Dict[str, NDArray] {
+            's': s-polarized admittance of the incident medium,
+            'p': p-polarized admittance of the incident medium }
         """
 
-        dialec_med = [m**2 for m in inc_medium]
-        dialec_films = [film**2 for film in self.get_matrix()]
+        # calculate complex dialectric constants (square the values)
+        dialectrics = [m**2 for m in self.incident_medium]
 
-        # Calculate admittances & phase factors for each layer
-        admit_s = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        admit_p = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        delta = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
+        # Calculate S and P admittances of the incident media
+        admit_s_inc = np.sqrt(dialectrics - dialectrics * np.sin(theta)**2)
+        admit_p_inc = dialectrics / admit_s_inc
 
-        # iterate each layer in thin film stack
-        for i, lyr in enumerate(self.layers):
-            admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
-            admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
-            delta[i, :] = (2 * np.pi * lyr.thickness * np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
+        return {'s': admit_s_inc, 'p': admit_p_inc}
 
-        # Flip layer-based arrays ns_film, np_film, delta
-        # since the last layer is the top layer
-        admit_s = np.flipud(admit_s)
-        admit_p = np.flipud(admit_p)
-        delta = np.flipud(delta)
-
-        return admit_s, admit_p, delta
-
-
-    def incident_reflection(theta):
+    def fresnel_coefficients(self, theta:float, reflection:str) -> Dict[str, NDArray]:
         """
-        Computes the reflection originating from the incident medium.
-        """
+        Calculates the fresnel amplitudes & intensities of filter given the
+        substrate admittance and incident medium admittance.
 
-        theta_inv = np.arcsin(med / sub * np.sin(theta))
-        layers_inv = [(str(v[0]), float(v[1])) for v in np.flipud(layers)]
-        sub_adm = self.admittance(layers_inv, waves, sub_n_eff, med, np.flipud(films), theta_inv)
-        sub_char = self.characteristic_matrix(sub_adm['ns_film'], sub_adm['np_film'], np.flipud(sub_adm['delta']))
-        sub_ref = self.fresnel_coefficients(sub_adm, sub_char)
+        Parameters
+        ------------
+        admit_sub: Tuple, substrate admittance (s-polarized, p-polarized)
+        char_matrix: Tuple, incident medium admittance (s-polarized, p-polarized)
+        reflection: str, one of 'medium' or 'substrate'
 
-        return sub_ref
-
-    def substrate_reflection(theta):
-        """
-        Computes the reflection originating from the substrate.
+        Returns
+        -------------
+        Dict[str, NDArray] {
+            'Ts' : s-polarized Fresnel Transmission Intensity,
+            'Tp' : p-polarized Fresnel Transmission Intensity,
+            'Rs' : s-polarized Fresnel Reflection Intensity,
+            'Rp' : p-polarized Fresnel Reflection Intensity,
+            'ts' : s-polarized Fresnel Transmission Amplitude,
+            'tp' : p-polarized Fresnel Transmission Amplitude,
+            'rs' : s-polarized Fresnel Reflection Amplitude,
+            'rp' : p-polarized Fresnel Reflection Amplitude}
         """
 
-        med_adm = self.admittance(layers, waves, sub, med, films, theta)
-        med_char = self.characteristic_matrix(med_adm['ns_film'], med_adm['np_film'], med_adm['delta'])
-        inc_med_ref = self.fresnel_coefficients(med_adm, med_char) # ---> admit_sub, admit_inc_med
+        if reflection == 'medium':
+            admit_sub = self.substrate.admittance(self.incident_medium, theta)
+            admit_inc = self.incident_admittance(theta)
+            char_matrix = self.film_stack.characteristic_matrix(self.incident_medium, theta)
+        elif reflection == 'substrate':
+            theta_inverse = np.arcsin(
+                self.incident_medium / self.substrate.ref_index * np.sin(theta))
+            admit_sub = self.substrate.admittance(self.incident_medium, theta_inverse)
+            admit_inc = self.incident_admittance(theta_inverse)
+            char_matrix = self.film_stack.characteristic_matrix(self.incident_medium, theta_inverse)
+        else:
+            raise ValueError("reflection must be one of 'medium' or 'substrate'")
 
-        return inc_med_ref
 
-    def filter_spectrum(
-            self, substrate:Substrate, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
+        # calculate admittance of the incident interface
+        admit_inc_int = {
+            's': ((char_matrix['S21'] - admit_sub['s'] * char_matrix['S22'])
+                    / (char_matrix['S11'] - admit_sub['s'] * char_matrix['S12'])),
+            'p': ((char_matrix['P21'] + admit_sub['p'] * char_matrix['P22'])
+                    / (char_matrix['P11'] + admit_sub['p'] * char_matrix['P12']))}
+
+        # Calculation of the Fresnel Amplitude Coefficients
+        fresnel = {
+            'rs': (admit_inc['s'] + admit_inc_int['s']) / (admit_inc['s'] - admit_inc_int['s']),
+            'rp': (admit_inc['p'] - admit_inc_int['p']) / (admit_inc['p'] + admit_inc_int['p'])}
+        fresnel['ts'] = (
+            (1 + fresnel['rs']) / (char_matrix['S11'] - char_matrix['S12']  * admit_sub['s']))
+        fresnel['tp'] = (
+            (1 + fresnel['rp']) / (char_matrix['P11'] + char_matrix['P12'] * admit_sub['p']))
+
+        # Calculation of the Fresnel Amplitude Intensities
+        fresnel['Rs'] = np.abs(fresnel['rs'])**2
+        fresnel['Rp'] = np.abs(fresnel['rp'])**2
+        fresnel['Ts'] = np.real(admit_sub['s'] / admit_inc['s']) * np.abs(fresnel['ts'])**2
+        fresnel['Tp'] = np.real(admit_sub['p'] / admit_inc['p']) * np.abs(fresnel['tp'])**2
+
+        return fresnel
+
+    def filter_spectrum(self, theta:float) -> Dict[str, NDArray]:
         """
         Calculates the transmission and reflection spectra of the
         thin-film interference filter.
@@ -108,23 +125,20 @@ class ThinFilmFilter():
             'Rp' : p-polarized reflection spectrum over wavelength range }
         """
 
-        # calculate effective substrate refractive index
-        sub_n_eff = substrate.effective_index(theta)
-
         # Calculate the path length through the substrate
-        sub_p_len = substrate.path_length(inc_medium, theta)
+        sub_p_len = self.substrate.path_length(self.incident_medium, theta)
 
         # Fresnel coefficients of incident medium / substrate interface
-        sub_fresnel = substrate.fresnel_coefficients(inc_medium, theta)
+        sub_fresnel = self.substrate.fresnel_coefficients(self.incident_medium, theta)
 
         # reflection originating from incident medium
-        inc_med_ref = self.incident_reflection()
+        inc_med_ref = self.fresnel_coefficients(theta, 'medium')
 
         # reflection originating from substrate
-        sub_ref = self.substrate_reflection()
+        sub_ref = self.fresnel_coefficients(theta, 'substrate')
 
-        # calculate the absorption coefficient for multiple reflections
-        alpha = (4 * np.pi * np.imag(substrate.ref_index)) / substrate.wavelengths
+        # calculate the absorption coefficients for multiple reflections
+        alpha = self.substrate.absorption_coefficients(n=4)
 
         # calculate filter reflection
         spec = {'Rs': (

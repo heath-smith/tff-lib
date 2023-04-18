@@ -9,9 +9,10 @@ To install via pip:
 """
 
 # import external packages
+from numpy import testing as nptest
 import numpy as np
 from typing import Union
-from tff_lib import utils
+from tff_lib import __utils_old as utils
 
 def fresnel_bare(
     sub:np.ndarray, med:np.ndarray, theta:Union[int, float], units:str='rad') -> dict:
@@ -61,8 +62,8 @@ def fresnel_bare(
         raise ValueError(f'shape mismatch -----> {sub.shape} != {med.shape}.')
 
     # convert arrays to complex, if needed
-    sub = sub.astype(np.complex) if not sub.dtype == np.complex else sub
-    med = med.astype(np.complex) if not med.dtype == np.complex else med
+    sub = sub.astype(np.complex128) if not sub.dtype == np.complex128 else sub
+    med = med.astype(np.complex128) if not med.dtype == np.complex128 else med
 
     # convert to radians
     theta = theta * (np.pi / 180) if units == 'deg' else theta
@@ -90,8 +91,13 @@ def fresnel_bare(
 
 
 def admit_delta(
-    layers:list, waves:np.ndarray, sub:np.ndarray, med:np.ndarray,
-    films:np.ndarray, theta:Union[int, float, np.ndarray], units:str='rad') -> dict:
+    layers:list,
+    waves:np.ndarray,
+    sub:np.ndarray,
+    med:np.ndarray,
+    films:np.ndarray,
+    theta:Union[int, float, np.ndarray],
+    units:str='rad') -> dict:
     """
     Calculates filter admittances of incident, substrate,
     and film as well as the phase (delta) upon reflection for each film.
@@ -129,37 +135,11 @@ def admit_delta(
     >>> delta = adm['delta']
     """
 
-    # Check for TypeErrors
-    if not isinstance(units, str):
-        raise TypeError(f'"units" expects <str>, received {type(units)}.')
-    if not type(theta) in (float, int, np.ndarray):
-        raise TypeError(
-            f'"theta" expects <int>, <float>, or <np.ndarray>, received {type(theta)}.')
-    if not isinstance(layers, list):
-        raise TypeError(f'"layers" expects <list>, received {type(layers)}.')
-    for arr in (waves, med, sub, films):
-        if not isinstance(arr, np.ndarray):
-            raise TypeError(f'-----> expected <np.ndarray>, received {type(arr)}.')
-    # check for Value Errors
-    if units not in ('rad', 'deg'):
-        raise ValueError(f'"units" expects "rad" or "deg", received "{units}"')
-    if not sub.shape == waves.shape:
-        raise ValueError(f'"sub" != "waves" ----> {sub.shape} != {med.shape}')
-    if not med.shape == waves.shape:
-        raise ValueError(f'"med" != "waves" ----> {med.shape} != {waves.shape}')
-    if not films.shape == (len(layers), len(waves)):
-        raise ValueError(
-            f'"films" shape mismatch ----> {films.shape} != ({len(layers)}, {len(waves)}).')
-    if isinstance(theta, np.ndarray):
-        if not len(theta) == len(waves):
-            raise ValueError(
-                f'"theta" shape mismatch -----> {len(theta)} != ({len(waves)}.')
-
     # convert refractive indices to complex, if needed,
     # and calculate complex dialectric constants (square the values)
-    sub = sub.astype(np.complex)**2 if not sub.dtype == np.complex else sub**2
-    med = med.astype(np.complex)**2 if not med.dtype == np.complex else med**2
-    films = films.astype(np.complex)**2 if not films.dtype == np.complex else films**2
+    sub = sub.astype(np.complex128)**2 if not sub.dtype == np.complex128 else sub**2
+    med = med.astype(np.complex128)**2 if not med.dtype == np.complex128 else med**2
+    films = films.astype(np.complex128)**2 if not films.dtype == np.complex128 else films**2
 
     # convert theta to radians, if needed, ensure positive
     theta = theta * (np.pi / 180) if units == 'deg' else theta
@@ -170,13 +150,14 @@ def admit_delta(
     # Calculate admittances of the incident and substrate media
     admit['ns_inc'] = np.sqrt(med - med * np.sin(theta)**2)
     admit['np_inc'] = med / admit['ns_inc']
+
     admit['ns_sub'] = np.sqrt(sub - med * np.sin(theta)**2)
     admit['np_sub'] = sub / admit['ns_sub']
 
     # Calculate admittances & phase factors for each layer
-    admit['ns_film'] = np.ones((len(layers), len(waves))).astype(np.complex)
-    admit['np_film'] = np.ones((len(layers), len(waves))).astype(np.complex)
-    admit['delta'] = np.ones((len(layers), len(waves))).astype(np.complex)
+    admit['ns_film'] = np.ones((len(layers), len(waves))).astype(np.complex128)
+    admit['np_film'] = np.ones((len(layers), len(waves))).astype(np.complex128)
+    admit['delta'] = np.ones((len(layers), len(waves))).astype(np.complex128)
 
     # iterate each layer in thin film stack
     for i, lyr in enumerate(layers):
@@ -250,14 +231,14 @@ def char_matrix(ns_film:np.ndarray, np_film:np.ndarray, delta:np.ndarray) -> dic
                 'p21': (-1j * np_film) * np.sin(delta)}
 
     # Initialize the characteristic matrices
-    char_mat = {'S11':np.ones(np.shape(elements['s11'])[1]).astype(np.complex),
-                'S12':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex),
-                'S21':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex),
-                'S22':np.ones(np.shape(elements['s11'])[1]).astype(np.complex),
-                'P11':np.ones(np.shape(elements['p11'])[1]).astype(np.complex),
-                'P12':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex),
-                'P21':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex),
-                'P22':np.ones(np.shape(elements['p11'])[1]).astype(np.complex)}
+    char_mat = {'S11':np.ones(np.shape(elements['s11'])[1]).astype(np.complex128),
+                'S12':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex128),
+                'S21':np.zeros(np.shape(elements['s11'])[1]).astype(np.complex128),
+                'S22':np.ones(np.shape(elements['s11'])[1]).astype(np.complex128),
+                'P11':np.ones(np.shape(elements['p11'])[1]).astype(np.complex128),
+                'P12':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex128),
+                'P21':np.zeros(np.shape(elements['p11'])[1]).astype(np.complex128),
+                'P22':np.ones(np.shape(elements['p11'])[1]).astype(np.complex128)}
 
     # Multiply all of the individual layer characteristic matrices together
     for i in range(np.shape(elements['s11'])[0]):
@@ -416,36 +397,10 @@ def fil_spec(
     sub_char = char_matrix(sub_adm['ns_film'], sub_adm['np_film'], np.flipud(sub_adm['delta']))
     sub_ref = fresnel_film(sub_adm, sub_char)
 
-    ### df = pd.read_excel(r'C:\Users\hsmith\Downloads\Dow_MOE_Rev5_IOvalues.xlsx', sheet_name=3)
-    ### test_delta = np.array([
-    ###     df['delta'],
-    ###     df['delta.1'],
-    ###     df['delta.2'],
-    ###     df['delta.3'],
-    ###     df['delta.4'],
-    ###     df['delta.5'],
-    ###     df['delta.6'],
-    ###     df['delta.7'],
-    ###     df['delta.8'],
-    ### ])
-    ### test_sub_char = {}
-    ### for k in sub_char.keys():
-    ###     temp = [complex(s.replace(' ', '').replace('i', 'j')) for s in df[k].values.tolist()]
-    ###     test_sub_char[k] = np.asarray(temp)
-    ### nptest.assert_almost_equal(test_sub_char['S11'], sub_char['S11'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['S12'], sub_char['S12'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['S21'], sub_char['S21'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['S22'], sub_char['S22'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['P11'], sub_char['P11'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['P12'], sub_char['P12'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['P21'], sub_char['P21'], decimal=13, verbose=2)
-    ### nptest.assert_almost_equal(test_sub_char['P22'], sub_char['P22'], decimal=13, verbose=2)
-    ### nptest.assert_array_almost_equal(test_delta, sub_adm['delta'], decimal=13)
-    ### plt.figure(figsize=(8, 8))
-    ### plt.plot(np.real(med_ref['rs']), np.imag(med_ref['rs']), label="Med rs")
-    ### plt.plot(np.real(sub_ref['rs']), np.imag(sub_ref['rs']), label="Sub rs")
-    ### plt.legend(loc='lower right')
-    ### plt.show()
+    nptest.assert_almost_equal(sub_adm['np_sub'], med_adm['np_sub'], decimal=13, verbose=2)
+
+    nptest.assert_almost_equal(med_adm['ns_film'], sub_adm['ns_film'], decimal=13, verbose=2)
+    nptest.assert_almost_equal(med_adm['np_film'], sub_adm['np_film'], decimal=13, verbose=2)
 
     # calculate filter reflection
     spec = {'Rs': (

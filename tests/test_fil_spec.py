@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import time
 
 # import function to test
-from tff_lib.utils import fil_spec
-from tff_lib.utils import film_matrix, convert_to_numpy, plot_data
+from tff_lib.__tff_lib_old import fil_spec
+from tff_lib.__utils_old import film_matrix, convert_to_numpy, plot_data
 
 class TestFilSpec(unittest.TestCase):
     """
@@ -35,8 +35,7 @@ class TestFilSpec(unittest.TestCase):
         """
 
         # static navigation to data directory and output directory
-        cls.dir = os.path.join(Path(__file__).resolve().parent, r'data')
-        cls.out_dir = os.path.join(cls.dir, 'out')
+        cls.dir = os.path.join(Path(__file__).resolve().parent.parent, r'data')
 
         # read in json file with test input data
         with open(os.path.join(cls.dir, 'test_data.json')) as dat:

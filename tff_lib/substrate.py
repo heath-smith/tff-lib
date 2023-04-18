@@ -20,6 +20,20 @@ class Substrate():
         Initialize the class attributes.
         """
 
+    def absorption_coefficients(self, n:int = 4) -> NDArray:
+        """
+        Calculate the absorption coefficient for n reflections.
+
+        Parameters
+        ----------
+        n: int, the number of reflections (default 4)
+
+        Returns
+        ----------
+        NDArray
+        """
+        return (n * np.pi * np.imag(self.ref_index)) / self.wavelengths
+
     def effective_index(self, theta:float) -> NDArray:
         """
         Calculates the effective substrate refractive index for abs. substrates.
@@ -110,14 +124,20 @@ class Substrate():
             'rp': r_p                # P-polarized fresnel Amplitude Coefficient
         }
 
-    def admittance(self, inc_medium:ArrayLike, theta:float) -> Tuple:
+    def admittance(
+            self, inc_medium:ArrayLike, theta:float, use_eff_idx:bool=False) -> Dict[str, NDArray]:
         """
-        Calculates optical admittance of substrate and incident medium.
+        Calculates optical admittance of substrate and incident
+        medium interface.
 
-        Parameters
+        args
         -------------
         inc_medium: ArrayLike, complex refractive index of incident medium
         theta: float, angle of incidence of radiation in radians
+
+        kwargs
+        ----------
+        use_eff_idx: bool, use the effective refractive index (default False)
 
         Returns
         --------------
@@ -134,10 +154,14 @@ class Substrate():
 
         # calculate complex dialectric constants (square the values)
         # for both the substrate and the incident medium
-        sub_dialectrics = [x**2 for x in self.ref_index]
+        if use_eff_idx:
+            sub_dialectrics = [x**2 for x in self.effective_index()]
+        else:
+            sub_dialectrics = [x**2 for x in self.ref_index]
+
         med_dialectrics = [m**2 for m in inc_medium]
 
         admit_s_sub = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
         admit_p_sub = sub_dialectrics / admit_s_sub
 
-        return admit_s_sub, admit_p_sub
+        return {'s': admit_s_sub, 'p': admit_p_sub}
