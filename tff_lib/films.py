@@ -4,6 +4,7 @@ to describe thin films and film stacks.
 """
 
 # import dependencies
+import random
 from typing import SupportsIndex, Iterable, Dict
 import numpy as np
 from numpy.typing import NDArray
@@ -148,10 +149,15 @@ class FilmStack():
 
     Attributes
     ----------
-        max_total_thick: float, maximum total thickness (nanometers)
-        max_layers: int, max limit for num layers
-        first_lyr_min_thick: float, first lyr min thickness (nanometers)
-        min_thick: float, all other layers min thickness (nanometers)
+        max_total_thick: float, maximum total thickness (nanometers) (default 20_000)
+        max_layers: int, max limit number of ThinFilm layers (default 25)
+        min_layers: int, minimum number of ThinFilm layers (default 5)
+        first_lyr_min_thick: float, first lyr min thickness (nanometers) (default 500)
+        min_thick: float, all other layers min thickness (nanometers) (default 10)
+
+    See Also
+    ----------
+    >>> tff_lib.ThinFilm()
     """
 
     def __init__(self, films: Iterable[ThinFilm], **kwargs) -> None:
@@ -165,7 +171,8 @@ class FilmStack():
         kwargs
         ----------
         max_total_thick: float, max total thickness in nanometers (default 20_000)
-        max_layers: int, maximum number of ThinFilm layers (default 20)
+        max_layers: int, maximum number of ThinFilm layers (default 25)
+        min_layers: int, minimum number of ThinFilm layers (default 5)
         first_lyr_min_thick: float, min thickness of first layer in nanometers (default 500)
         min_thick: float, min thickness of remaining layers in nanometers (default 10)
 
@@ -178,6 +185,7 @@ class FilmStack():
         max_layers = kwargs.get('max_layers', 25)
         first_lyr_min_thick = kwargs.get('first_lyr_min_thick', 500)
         min_thick = kwargs.get('min_thick', 10)
+        min_layers = kwargs.get('min_layers', 5)
 
         # validate inputs
         if max_total_thick <= 0:
@@ -188,6 +196,10 @@ class FilmStack():
             raise ValueError("min_thick must be greater than 0.")
         if max_layers <= 0:
             raise ValueError("max_layers must be greater than 0.")
+        if min_layers <= 0:
+            raise ValueError("min_layers must be greater than 0.")
+        if min_layers >= max_layers:
+            raise ValueError("min_layers must be less than max_layers")
 
         # set properties (managed-attributes) using setter
         self.stack = films
@@ -197,6 +209,7 @@ class FilmStack():
         self.max_layers = int(max_layers)
         self.first_lyr_min_thick = float(first_lyr_min_thick)
         self.min_thick = float(min_thick)
+        self.min_layers = int(min_layers)
 
     @property
     def total_thick(self):
@@ -241,10 +254,11 @@ class FilmStack():
         """
         Property - numpy.NDArray, a matrix of each film's refractive indices.
         """
-        matrix = np.zeros((len(self._stack), len(self._stack[0].ref_index)))
+        matrix = np.zeros(
+            (len(self._stack), len(self._stack[0].ref_index))).astype(np.complex128)
 
         for i, lyr in enumerate(self._stack):
-            matrix[i, :] = lyr
+            matrix[i, :] = lyr.ref_index
 
         return matrix
 
@@ -263,20 +277,33 @@ class FilmStack():
     def stack(self, films:Iterable[ThinFilm]):
         if len(films) < 1:
             raise ValueError("film stack must contain at least 1 layer")
-        self._stack = films
+
+        # because films is mutable, python will re-use the 'films' object.
+        # to avoid erroneous behavior, create a new object for _stack so
+        # films will be re-evaluated each time it is changed
+        # ref ---> https://python-guide.readthedocs.io/en/latest/writing/gotchas/
+        self._stack = [f for f in films]
 
     def insert_layer(self, layer: ThinFilm, index: SupportsIndex) -> None:
         """
         Insert a new thin film layer before index.
         Updates num_layers and total_thick attributes.
         """
-        self._stack.insert(index, layer)
+        ## ---> This one actually needs some more thought because layers
+        ## must alternate between 'H' and 'L' material.. so layers cannot
+        ## just be inserted freely...
+
+        #self._stack.insert(index, layer)
+        raise NotImplementedError
 
     def append_layer(self, layer: ThinFilm) -> None:
         """
         Appends a new thin film layer to end of stack.
         Updates num_layers and total_thick attributes.
         """
+        if self._stack[-1].material == layer.material:
+            raise ValueError("film stacks must have alternating materials")
+
         self._stack.append(layer)
 
     def remove_layer(self, index: SupportsIndex = -1) -> ThinFilm:
@@ -422,3 +449,75 @@ class FilmStack():
                                 + (_matrices['P22'] * elements['p22'][i, :]))
 
         return matrices
+
+
+class RandomFilmStack(FilmStack):
+    """
+    A randomized film stack. Inherits public attributes, properties,
+     and methods from FilmStack().
+
+    See Also
+    ----------
+    >>> tff_lib.FilmStack()
+    """
+
+    def __init__(
+            self,
+            wavelengths: Iterable[float],
+            high_mat: Iterable[complex],
+            low_mat: Iterable[complex],
+            **kwargs
+    ) -> None:
+        """
+        Generates a randomized thin film stack object.
+
+        args
+        ----------
+        wavelengths: Iterable[float], 1-D wavelength array for materials
+        high_mat: Iterable[complex], 1-D refractive indices of high index material
+        low_mat: Iterable[complex], 1-D refractive indices of low index material
+
+        kwargs
+        ----------
+        max_total_thick: float, max total thickness in nanometers (default 20_000)
+        max_layers: int, maximum number of ThinFilm layers (default 20)
+        min_layers: int, minimum number of ThinFilm layers (default 5)
+        first_lyr_min_thick: float, min thickness of first layer in nanometers (default 500)
+        min_thick: float, min thickness of remaining layers in nanometers (default 10)
+
+        See Also
+        ----------
+        >>> tff_lib.FilmStack()
+        """
+
+        max_layers = kwargs.get('max_layers', 20)
+        min_layers = kwargs.get('min_layers', 5)
+        total_thick = kwargs.get('max_total_thick', 20_000)
+
+        if not len(high_mat) == len(wavelengths):
+            raise ValueError("high_mat length must match wavelengths")
+        if not len(low_mat) == len(wavelengths):
+            raise ValueError("low_mat length must match wavelengths")
+        if not len(low_mat) == len(high_mat):
+            raise ValueError("high_mat length must match low_mat length")
+
+        # generate a random number of layers between min_layers - max_layers
+        rand_layers = min_layers + round((max_layers - min_layers) * random.uniform(0.0, 1.0))
+        scale_factor = 2 * total_thick / rand_layers
+
+        # random film stack
+        rand_stack = []
+
+        # generate thin film layers
+        for i in range(rand_layers):
+            rand_stack.append(
+                ThinFilm(
+                    "H" if i % 2 == 0 else "L",
+                    scale_factor * random.uniform(0.0, 1.0),
+                    wavelengths,
+                    high_mat if i % 2 == 0 else low_mat
+                )
+            )
+
+        # pass kwargs to parent __init__()
+        super().__init__(rand_stack, **kwargs)

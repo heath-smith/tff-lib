@@ -17,7 +17,7 @@ import os
 import json
 
 # import class to test
-from tff_lib.films import ThinFilm
+from tff_lib import ThinFilm
 
 class TestThinFilm(unittest.TestCase):
     """
@@ -38,10 +38,10 @@ class TestThinFilm(unittest.TestCase):
             cls.test_data = json.load(dat)
 
         # setup input data from test_expected.json
-        cls.test_material = 'H'
-        cls.test_thickness = 0.5
-        cls.test_wavelengths = cls.test_data['input']['wv']
-        cls.test_ref_index = cls.test_data['input']['high_mat']
+        cls._material = 'H'
+        cls._thickness = 0.5
+        cls._wavelengths = cls.test_data['input']['wv']
+        cls._ref_index = cls.test_data['input']['high_mat']
 
     def test_thin_film_init(self):
         """
@@ -49,17 +49,17 @@ class TestThinFilm(unittest.TestCase):
         """
 
         test_tf = ThinFilm(
-            self.test_material,
-            self.test_thickness,
-            self.test_wavelengths,
-            self.test_ref_index)
+            self._material,
+            self._thickness,
+            self._wavelengths,
+            self._ref_index)
 
         # assert values in ref_index are complex typed
         self.assertEqual(complex, type(test_tf.ref_index[0]))
         # assert wavelength and ref_index have equal length
         self.assertEqual(len(test_tf.wavelengths), len(test_tf.ref_index))
         # assert thickness value is valid
-        self.assertEqual(test_tf.thickness, self.test_thickness)
+        self.assertEqual(test_tf.thickness, self._thickness)
 
     def test_thin_film_invalid_inputs(self):
         """
@@ -69,26 +69,26 @@ class TestThinFilm(unittest.TestCase):
         with self.assertRaises(ValueError):
             # test with negative thickness value
             ThinFilm(
-                self.test_material,
+                self._material,
                 -1,
-                self.test_wavelengths,
-                self.test_ref_index)
+                self._wavelengths,
+                self._ref_index)
 
         with self.assertRaises(ValueError):
             # take a slice of wavelengths
             ThinFilm(
-                self.test_material,
-                self.test_thickness,
-                self.test_wavelengths[:-5],
-                self.test_ref_index)
+                self._material,
+                self._thickness,
+                self._wavelengths[:-5],
+                self._ref_index)
 
         with self.assertRaises(ValueError):
             # use invalid material
             ThinFilm(
                 'wrong material string',
-                self.test_thickness,
-                self.test_wavelengths,
-                self.test_ref_index)
+                self._thickness,
+                self._wavelengths,
+                self._ref_index)
 
 
     def test_thin_film_add_subtract(self):
@@ -97,17 +97,17 @@ class TestThinFilm(unittest.TestCase):
         """
 
         t1 = ThinFilm(
-            self.test_material,
-            self.test_thickness,
-            self.test_wavelengths,
-            self.test_ref_index)
+            self._material,
+            self._thickness,
+            self._wavelengths,
+            self._ref_index)
 
 
         t2 = ThinFilm(
-            self.test_material,
+            self._material,
             1.0,
-            self.test_wavelengths,
-            self.test_ref_index)
+            self._wavelengths,
+            self._ref_index)
 
         t3 = t1 + t2
         t4 = t2 - t1
@@ -121,15 +121,15 @@ class TestThinFilm(unittest.TestCase):
         """
 
         t1 = ThinFilm(
-            self.test_material,
-            self.test_thickness,
-            self.test_wavelengths,
-            self.test_ref_index)
+            self._material,
+            self._thickness,
+            self._wavelengths,
+            self._ref_index)
 
         t2 = t1.split_film()
 
-        self.assertEqual(t1.thickness, self.test_thickness * 0.5)
-        self.assertEqual(t2.thickness, self.test_thickness * 0.5)
+        self.assertEqual(t1.thickness, self._thickness * 0.5)
+        self.assertEqual(t2.thickness, self._thickness * 0.5)
 
     @classmethod
     def tearDownClass(cls):
