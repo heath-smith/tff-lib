@@ -5,7 +5,9 @@ This module contains the ThinFilmFilter class.
 from typing import Dict
 from numpy.typing import NDArray
 import numpy as np
-from tff_lib import Substrate, FilmStack, OpticalMedium
+from .substrate import Substrate
+from .films import FilmStack
+from .medium import OpticalMedium
 
 class ThinFilmFilter():
     """

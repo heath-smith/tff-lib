@@ -6,8 +6,8 @@ to describe thin films and film stacks.
 # import dependencies
 from typing import SupportsIndex, Iterable, Dict
 import numpy as np
-from numpy.typing import NDArray, ArrayLike
-from tff_lib import OpticalMedium
+from numpy.typing import NDArray
+from .medium import OpticalMedium
 
 class WritePropertyError(Exception):
     """
@@ -18,12 +18,16 @@ class ThinFilm():
     """
     Abstract object representing a thin optical film.
 
-    """
+    Properties
+    ----------
+        thickness: float, Read-Write, layer thickness in nanometers
 
-    material = ''       # str 'H' or 'L'
-    thickness = 0       # layer thickness, nanometers
-    wavelengths = []    # wavelength array for material
-    ref_index = []      # refractive indices as fx of wavelengths
+    Attributes
+    ----------
+        material: str, 'H' or 'L'
+        wavelengths: Iterable[float], 1-D wavelength array for material
+        ref_index: Iterable[complex], 1-D refractive indices as fx of wavelengths
+    """
 
     def __init__(
         self,
@@ -39,8 +43,8 @@ class ThinFilm():
         ----------
         material: str, 'H' or 'L' (case-insensitive)
         thickness: float, layer thickness in nanometers, must be greater than zero
-        wavelengths: Iterable[float], wavelength array
-        ref_index: Iterable[complex], refractive indices as f(x) of wavelength
+        wavelengths: Iterable[float], 1-D wavelength array for material
+        ref_index: Iterable[complex], 1-D refractive indices as f(x) of wavelength
 
         Raises
         ----------
@@ -53,13 +57,45 @@ class ThinFilm():
             raise ValueError(f"material must be one of 'H' or 'L'. received {material}")
         if not len(wavelengths) == len(ref_index):
             raise ValueError("len(wavelengths) and len(ref_index) must be equal.")
-        if float(thickness) <= 0:
-            raise ValueError(f"thickness must be greater than zero. received {thickness}")
 
-        self.material = str(material).upper()
+        # set thickness using setter
         self.thickness = float(thickness)
+
+        # set attributes
+        self.material = str(material).upper()
         self.wavelengths = [float(x) for x in wavelengths]
         self.ref_index = [complex(y) for y in ref_index]
+
+    @property
+    def thickness(self) -> float:
+        """
+        float, layer thickness in nanometers, must be greater than zero
+        """
+        return self._thickness
+
+    @thickness.setter
+    def thickness(self, new_thickness:float):
+        if new_thickness <= 0:
+            raise ValueError("thickness must be greater than 0")
+        self._thickness = new_thickness
+
+    def split_film(self):
+        """
+        Split the thin film layer into two layers with height
+        1/2 of the calling instance. Reduces calling instance
+        thickness to 1/2 its original value.
+
+        Returns
+        ----------
+        ThinFilm() object with thickness value half of calling instance
+        thickness attribute.
+        """
+
+        new_thickness = self.thickness * 0.5
+        self.thickness = new_thickness
+
+        return ThinFilm(
+            self.material, new_thickness, self.wavelengths, self.ref_index)
 
     def __add__(self, film:'ThinFilm'):
         """
@@ -80,8 +116,9 @@ class ThinFilm():
 
     def __sub__(self, film:'ThinFilm'):
         """
-        Subtracts thickness values of two thin films. Must have matching
-        wavelengths, refractive indices, and material attributes.
+        Subtracts thickness values of two thin films with matching
+        attributes. Returns absolute difference between thickness
+        values.
         """
 
         if not self.wavelengths == film.wavelengths:
@@ -91,7 +128,7 @@ class ThinFilm():
         if not self.material == film.material:
             raise ValueError("'material' values must be equivalent to add thin films.")
 
-        self.thickness = self.thickness - film.thickness    # update self.thickness
+        self.thickness = abs(self.thickness - film.thickness)    # update self.thickness
 
         return type(self)(self.material, self.thickness, self.wavelengths, self.ref_index)
 
@@ -100,20 +137,26 @@ class FilmStack():
     """
     Abstract object representing a stack of optical
     thin films.
+
+    Properties
+    ----------
+        stack: Iterable[ThinFilm], Read-Write, list of thin film layers
+        total_thick: float, ReadOnly, total thickness of stack
+        num_layers: float, Read-Only, number of layers in stack
+        layers: Iterable[float], Read-Write, layer thickness values
+        matrix: NDArray, Read-Only, matrix of refractive indices for each layer
+
+    Attributes
+    ----------
+        max_total_thick: float, maximum total thickness (nanometers)
+        max_layers: int, max limit for num layers
+        first_lyr_min_thick: float, first lyr min thickness (nanometers)
+        min_thick: float, all other layers min thickness (nanometers)
     """
-
-    # non-public attributes
-    _stack = []             # list of thin film layers
-
-    # public attributes
-    max_total_thick = 0     # maximum total thickness (nanometers)
-    max_layers = 0          # max limit for num layers
-    first_lyr_min_thick = 0 # first lyr min thickness (nanometers)
-    min_thick = 0           # all other layers min thickness (nanometers)
 
     def __init__(self, films: Iterable[ThinFilm], **kwargs) -> None:
         """
-        Initialize class and set attributes
+        Initialize class and set attributes.
 
         args
         ----------
@@ -137,8 +180,6 @@ class FilmStack():
         min_thick = kwargs.get('min_thick', 10)
 
         # validate inputs
-        if len(films) < 1:
-            raise ValueError("films must have at least 1 value.")
         if max_total_thick <= 0:
             raise ValueError("max_total_thick must be greater than 0.")
         if first_lyr_min_thick <= 0:
@@ -148,10 +189,8 @@ class FilmStack():
         if max_layers <= 0:
             raise ValueError("max_layers must be greater than 0.")
 
-        # set properties (managed-attributes)
-        self._stack = films
-        self._total_thick = self.total_thick
-        self._num_layers = len(self._stack)
+        # set properties (managed-attributes) using setter
+        self.stack = films
 
         # set attributes (un-managed)
         self.max_total_thick = float(max_total_thick)
@@ -186,14 +225,14 @@ class FilmStack():
     @property
     def layers(self) -> Iterable[float]:
         """
-        Property - Iterable[float], the layer thickness values.
+        Property - Iterable[float], 1-D layer thickness values.
         """
         return [lyr.thickness for lyr in self._stack]
 
     @layers.setter
     def layers(self, lyrs:Iterable[float]):
         if not len(self._stack) == len(lyrs):
-            raise ValueError("lyrs must have same length as 'stack' property")
+            raise ValueError("lyrs must be same length as stack")
         for i, film in enumerate(self._stack):
             film.thickness = lyrs[i]
 
@@ -208,6 +247,10 @@ class FilmStack():
             matrix[i, :] = lyr
 
         return matrix
+
+    @matrix.setter
+    def matrix(self, val):
+        raise WritePropertyError("matrix is a read-only property")
 
     @property
     def stack(self) -> Iterable[ThinFilm]:
