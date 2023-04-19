@@ -2,23 +2,47 @@
 This module contains the Substrate class.
 """
 
-from typing import Tuple, Dict
-from numpy.typing import ArrayLike, NDArray
+from typing import Dict, Iterable
+from numpy.typing import NDArray
 import numpy as np
+from tff_lib import OpticalMedium
 
 class Substrate():
     """
     Abstract object representing a physical substrate.
+
+    Attributes
+    -----------
+        thickness: float, thickness in mm
+        wavelengths: Iterable[float], 1-D wavelength values
+        ref_index: Iterable[complex] 1-D complex refractive indices
     """
 
-    thickness = 0       # thickness in mm
-    wavelengths = []    # wavelength array
-    ref_index = []      # complex refractive indices as f(x) of wavelengths
+    def __init__(
+            self,
+            thickness: float,
+            wavelengths: Iterable[float],
+            ref_index: Iterable[complex]
+    ) -> None:
+        """
+        Initialize the class attributes. Raises ValueError if wavelengths
+        and ref_index not equal length or thickness less than zero.
 
-    def __init__(self, thickness, wavelengths, ref_index):
+        Parameters
+        ----------
+        thickness: float, thickness in mm
+        wavelengths: Iterable[float], 1-D wavelength values
+        ref_index: Iterable[complex] 1-D complex refractive indices
         """
-        Initialize the class attributes.
-        """
+
+        if not len(wavelengths) == len(ref_index):
+            raise ValueError("wavelengths must be same length as ref_index")
+        if thickness <= 0.0:
+            raise ValueError("thickness must be greater than 0")
+
+        self.thickness = thickness
+        self.wavelengths = wavelengths
+        self.ref_index = ref_index
 
     def absorption_coefficients(self, n:int = 4) -> NDArray:
         """
@@ -54,14 +78,14 @@ class Substrate():
 
         return np.sqrt(inside2)
 
-    def path_length(self, inc_medium:ArrayLike, theta:float) -> NDArray:
+    def path_length(self, inc_medium:OpticalMedium, theta:float) -> NDArray:
         """
         Calculates the estimated optical path length through substrate
         given incident medium and incident angle.
 
         Parameters
         -------------
-        inc_medium: ArrayLike, refractive indices of incident medium
+        inc_medium: OpticalMedium, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -72,18 +96,18 @@ class Substrate():
         # calculate the numerator and denominator
         num = self.thickness * (10**6)
         den = np.sqrt(
-            1 - (np.abs(inc_medium)**2 * (np.sin(theta)**2) / self.effective_index(theta)**2))
+            1 - (np.abs(inc_medium.ref_index)**2 * (np.sin(theta)**2) / self.effective_index(theta)**2))
 
         # return the path length
         return num / den
 
-    def fresnel_coefficients(self, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
+    def fresnel_coefficients(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of the bare substrate.
 
         Parameters
         -----------
-        inc_medium: ArrayLike, complex refractive index on incident medium (i_n = x+y*j)
+        inc_medium: OpticalMedium, complex refractive index on incident medium (i_n = x+y*j)
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -99,16 +123,16 @@ class Substrate():
         }
         """
 
-        if not self.ref_index.shape == inc_medium.shape:
-            raise ValueError(f'shaped not equal: {self.ref_index.shape} != {inc_medium.shape}.')
+        if not self.ref_index.shape == inc_medium.ref_index.shape:
+            raise ValueError(f'shaped not equal: {self.ref_index.shape} != {inc_medium.ref_index.shape}.')
 
         # Calculation of the Fresnel Amplitude Coefficients
-        rs_num = (inc_medium * np.cos(theta)) - np.sqrt(self.ref_index**2 - inc_medium**2 * np.sin(theta)**2)
-        rs_den = (inc_medium * np.cos(theta)) + np.sqrt(self.ref_index**2 - inc_medium**2 * np.sin(theta)**2)
+        rs_num = (inc_medium.ref_index * np.cos(theta)) - np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
+        rs_den = (inc_medium.ref_index * np.cos(theta)) + np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
         r_s = rs_num / rs_den
 
-        rp_num = self.ref_index**2 * np.cos(theta) - inc_medium * np.sqrt(self.ref_index**2 - inc_medium**2 * np.sin(theta)**2)
-        rp_den = self.ref_index**2 * np.cos(theta) + inc_medium * np.sqrt(self.ref_index**2 - inc_medium**2 * np.sin(theta)**2)
+        rp_num = self.ref_index**2 * np.cos(theta) - inc_medium.ref_index * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
+        rp_den = self.ref_index**2 * np.cos(theta) + inc_medium.ref_index * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
         r_p = -rp_num / rp_den
 
         # Calculation of Fresnel Intensities for bare substrate interface
@@ -125,14 +149,14 @@ class Substrate():
         }
 
     def admittance(
-            self, inc_medium:ArrayLike, theta:float, use_eff_idx:bool=False) -> Dict[str, NDArray]:
+            self, inc_medium:OpticalMedium, theta:float, use_eff_idx:bool=False) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of substrate and incident
         medium interface.
 
         args
         -------------
-        inc_medium: ArrayLike, complex refractive index of incident medium
+        inc_medium: OpticalMedium, complex refractive index of incident medium
         theta: float, angle of incidence of radiation in radians
 
         kwargs
@@ -149,8 +173,8 @@ class Substrate():
         substrate.ref_index shape or  theta <= 0.
         """
 
-        if not np.shape(self.ref_index) == np.shape(inc_medium):
-            raise ValueError("inc_medium shape must match substrate.ref_index attribute.")
+        if not np.shape(self.ref_index) == np.shape(inc_medium.ref_index):
+            raise ValueError("inc_medium.ref_index shape must match substrate.ref_index")
 
         # calculate complex dialectric constants (square the values)
         # for both the substrate and the incident medium
@@ -159,7 +183,7 @@ class Substrate():
         else:
             sub_dialectrics = [x**2 for x in self.ref_index]
 
-        med_dialectrics = [m**2 for m in inc_medium]
+        med_dialectrics = [m**2 for m in inc_medium.ref_index]
 
         admit_s_sub = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
         admit_p_sub = sub_dialectrics / admit_s_sub

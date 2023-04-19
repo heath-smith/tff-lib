@@ -3,43 +3,43 @@ This module contains the ThinFilmFilter class.
 """
 
 from typing import Dict
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import NDArray
 import numpy as np
-from tff_lib import Substrate, FilmStack
+from tff_lib import Substrate, FilmStack, OpticalMedium
 
 class ThinFilmFilter():
     """
     Abstract representation of a thin-film
-    optical filter.
+    optical filter. A filter consists of 3 parts,
+    the substrate, a thin film stack, and the incident
+    medium.
+
+    Attributes
+    ----------
+        substrate: Substrate, the substrate of the thin film filter
+        film_stack: FilmStack, optical thin film stack
+        incident_medium: OpticalMedium,
     """
 
-    substrate = Substrate()
-    film_stack = FilmStack()
-    incident_medium = []
-
-    def incident_admittance(self, theta:float) -> Dict[str, NDArray]:
+    def __init__(
+            self,
+            substrate: Substrate,
+            film_stack: FilmStack,
+            incident_medium: OpticalMedium
+    ) -> None:
         """
-        Calculates optical admittance of the incident medium.
+        Initializes the ThinFilmFilter class.
 
         Parameters
-        -------------
-        theta: float, angle of incidence of radiation in radians
-
-        Returns
-        --------------
-        Dict[str, NDArray] {
-            's': s-polarized admittance of the incident medium,
-            'p': p-polarized admittance of the incident medium }
+        ----------
+        substrate: Substrate, the substrate of the filter
+        film_stack: FilmStack, optical thin film stack
+        incident_medium: OpticalMedium, the optical medium
         """
 
-        # calculate complex dialectric constants (square the values)
-        dialectrics = [m**2 for m in self.incident_medium]
-
-        # Calculate S and P admittances of the incident media
-        admit_s_inc = np.sqrt(dialectrics - dialectrics * np.sin(theta)**2)
-        admit_p_inc = dialectrics / admit_s_inc
-
-        return {'s': admit_s_inc, 'p': admit_p_inc}
+        self.substrate = substrate
+        self.film_stack = film_stack
+        self.incident_medium = incident_medium
 
     def fresnel_coefficients(self, theta:float, reflection:str) -> Dict[str, NDArray]:
         """
@@ -68,16 +68,15 @@ class ThinFilmFilter():
         if reflection == 'medium':
             admit_sub = self.substrate.admittance(self.incident_medium, theta)
             admit_inc = self.incident_admittance(theta)
-            char_matrix = self.film_stack.characteristic_matrix(self.incident_medium, theta)
+            char_matrix = self.film_stack.char_matrix(self.incident_medium, theta)
         elif reflection == 'substrate':
             theta_inverse = np.arcsin(
-                self.incident_medium / self.substrate.ref_index * np.sin(theta))
+                self.incident_medium.ref_index / self.substrate.ref_index * np.sin(theta))
             admit_sub = self.substrate.admittance(self.incident_medium, theta_inverse)
             admit_inc = self.incident_admittance(theta_inverse)
-            char_matrix = self.film_stack.characteristic_matrix(self.incident_medium, theta_inverse)
+            char_matrix = self.film_stack.char_matrix(self.incident_medium, theta_inverse)
         else:
             raise ValueError("reflection must be one of 'medium' or 'substrate'")
-
 
         # calculate admittance of the incident interface
         admit_inc_int = {

@@ -4,17 +4,20 @@ to describe thin films and film stacks.
 """
 
 # import dependencies
-from typing import SupportsIndex, Iterable, Dict, Tuple
+from typing import SupportsIndex, Iterable, Dict
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
-from .substrate import Substrate
+from tff_lib import OpticalMedium
 
 class WritePropertyError(Exception):
-    pass
+    """
+    Custom property write error class.
+    """
 
 class ThinFilm():
     """
     Abstract object representing a thin optical film.
+
     """
 
     material = ''       # str 'H' or 'L'
@@ -148,7 +151,7 @@ class FilmStack():
         # set properties (managed-attributes)
         self._stack = films
         self._total_thick = self.total_thick
-        self._num_layers = len(self._layers)
+        self._num_layers = len(self._stack)
 
         # set attributes (un-managed)
         self.max_total_thick = float(max_total_thick)
@@ -261,13 +264,13 @@ class FilmStack():
         """
         return self._stack[index]
 
-    def admittance(self, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
+    def admittance(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
         """
         Calculate admittances of thin film filter.
 
         Parameters
         -------------
-        inc_medium: ArrayLike, refractive indices of incident medium
+        inc_medium: OpticalMedium, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -282,8 +285,8 @@ class FilmStack():
         https://www.svc.org/DigitalLibrary/documents/2008_Summer_AMacleod.pdf
         """
 
-        dialec_med = [m**2 for m in inc_medium]
-        dialec_films = [film**2 for film in self.get_matrix()]
+        dialec_med = [m**2 for m in inc_medium.ref_index]
+        dialec_films = [film**2 for film in self.matrix]
 
         # Calculate admittances & phase factors for each layer
         admit_s = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
@@ -294,7 +297,9 @@ class FilmStack():
         for i, lyr in enumerate(self.layers):
             admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
             admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
-            delta[i, :] = (2 * np.pi * lyr.thickness * np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
+            delta[i, :] = (
+                2 * np.pi * lyr.thickness * np.sqrt(
+                dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
 
         # Flip layer-based arrays ns_film, np_film, delta
         # since the last layer is the top layer
@@ -304,13 +309,13 @@ class FilmStack():
 
         return {'s': admit_s, 'p': admit_p, 'delta': delta}
 
-    def characteristic_matrix(self, inc_medium:ArrayLike, theta:float) -> Dict[str, NDArray]:
+    def char_matrix(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
         """
         Calculates the characteristic matrix for a thin film stack.
 
         Parameters
         -----------
-        inc_medium: ArrayLike, refractive indices of incident medium
+        inc_medium: OpticalMedium, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
