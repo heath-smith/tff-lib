@@ -55,3 +55,16 @@ ThinFilm, FilmStack, ThinFilmFilter, Substrate, and OpticalMedium. Additionally,
 optimization applications. There is also a custom error class, WritePropertyError which is used to safeguard read-only class properties.
 
 ![Diagram](./class_diagram.png)
+
+# Reference
+[UML Wiki](https://en.wikipedia.org/wiki/Unified_Modeling_Language)
+
+[UML Class Diagrams](https://www.visual-paradigm.com/guide/uml-unified-modeling-language/uml-class-diagram-tutorial/)
+
+[NumPy](https://numpy.org/)
+
+[SciPy](https://scipy.org/)
+
+[Thin-film Optics](https://en.wikipedia.org/wiki/Thin-film_optics)
+
+[Thin-film interference](https://en.wikipedia.org/wiki/Thin-film_interference)
