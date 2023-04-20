@@ -54,4 +54,4 @@ to most of the common elements used in a thin-film optical filter design, includ
 ThinFilm, FilmStack, ThinFilmFilter, Substrate, and OpticalMedium. Additionally, tff_lib supports a RandomFilmStack which can be used in some exhaustive search
 optimization applications. There is also a custom error class, WritePropertyError which is used to safeguard read-only class properties.
 
-![Diagram](./class_diagram.svg)
+![Diagram](./class_diagram.png)
