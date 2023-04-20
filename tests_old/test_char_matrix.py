@@ -20,8 +20,9 @@ import json
 import time
 
 # import function to test
-from tff_lib.utils import char_matrix
-from tff_lib.utils import convert_to_numpy
+from tff_lib.__tff_lib_old import fil_spec, char_matrix
+from tff_lib.__utils_old import film_matrix, convert_to_numpy, plot_data
+
 
 class TestCharMatrix(unittest.TestCase):
     """
@@ -35,8 +36,7 @@ class TestCharMatrix(unittest.TestCase):
         """
 
         # static navigation to data directory and output directory
-        cls.dir = os.path.join(Path(__file__).resolve().parent, r'data')
-        cls.out_dir = os.path.join(cls.dir, 'out')
+        cls.dir = os.path.join(Path(__file__).resolve().parent.parent, r'data')
 
         # read in json file with test input data
         with open(os.path.join(cls.dir, 'test_data.json')) as dat:
@@ -55,15 +55,19 @@ class TestCharMatrix(unittest.TestCase):
         """
         ----------> default test case
         """
-        # time the execution
-        start = time.perf_counter()
 
-        # test the char_matrix()
-        _cmat = char_matrix(self.test_nsfilm, self.test_npfilm, self.test_delta)
+        T = np.zeros(1000)
+        for i in range(1000):
+            # time the execution
+            start = time.perf_counter()
 
-        # end time
-        end = time.perf_counter()
-        t = (end - start)
+            # test the char_matrix()
+            _cmat = char_matrix(self.test_nsfilm, self.test_npfilm, self.test_delta)
+
+            # end time
+            end = time.perf_counter()
+            T[i] = (end - start)
+        t = np.mean(T)
         sys.stdout.write(f"\nElapsed Time= {round(t, 4)} seconds.\n")
 
         # verify the output

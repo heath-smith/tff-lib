@@ -40,9 +40,9 @@ class Substrate():
         if thickness <= 0.0:
             raise ValueError("thickness must be greater than 0")
 
-        self.thickness = thickness
-        self.wavelengths = wavelengths
-        self.ref_index = ref_index
+        self.thickness = float(thickness)
+        self.wavelengths = np.array([float(x) for x in wavelengths])
+        self.ref_index = np.array([complex(y) for y in ref_index])
 
     def absorption_coefficients(self, n:int = 4) -> NDArray:
         """
@@ -101,7 +101,11 @@ class Substrate():
         # return the path length
         return num / den
 
-    def fresnel_coefficients(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
+    def fresnel_coefficients(
+            self,
+            inc_medium: OpticalMedium,
+            theta: float
+    ) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of the bare substrate.
 
@@ -149,7 +153,11 @@ class Substrate():
         }
 
     def admittance(
-            self, inc_medium:OpticalMedium, theta:float, use_eff_idx:bool=False) -> Dict[str, NDArray]:
+            self,
+            inc_medium:OpticalMedium,
+            theta:float,
+            use_eff_idx:bool=False
+    ) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of substrate and incident
         medium interface.
@@ -179,11 +187,11 @@ class Substrate():
         # calculate complex dialectric constants (square the values)
         # for both the substrate and the incident medium
         if use_eff_idx:
-            sub_dialectrics = [x**2 for x in self.effective_index()]
+            sub_dialectrics = self.effective_index()**2
         else:
-            sub_dialectrics = [x**2 for x in self.ref_index]
+            sub_dialectrics = self.ref_index**2
 
-        med_dialectrics = [m**2 for m in inc_medium.ref_index]
+        med_dialectrics = inc_medium.ref_index**2
 
         admit_s_sub = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
         admit_p_sub = sub_dialectrics / admit_s_sub

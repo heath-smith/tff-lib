@@ -54,8 +54,6 @@ class TestThinFilm(unittest.TestCase):
             self._wavelengths,
             self._ref_index)
 
-        # assert values in ref_index are complex typed
-        self.assertEqual(complex, type(test_tf.ref_index[0]))
         # assert wavelength and ref_index have equal length
         self.assertEqual(len(test_tf.wavelengths), len(test_tf.ref_index))
         # assert thickness value is valid

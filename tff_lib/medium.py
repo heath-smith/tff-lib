@@ -47,9 +47,9 @@ class OpticalMedium():
         if not len(wavelengths) == len(ref_index):
             raise ValueError("length of wavelengths and ref_index must be equal")
 
-        self.wavelengths = [float(x) for x in wavelengths]
-        self.ref_index = [complex(y) for y in ref_index]
-        self.name = name
+        self.wavelengths = np.array([float(x) for x in wavelengths])
+        self.ref_index = np.array([complex(y) for y in ref_index])
+        self.name = str(name)
 
     def admittance(self, theta:float) -> Dict[str, NDArray]:
         """
@@ -67,7 +67,7 @@ class OpticalMedium():
         """
 
         # calculate complex dialectric constants (square the values)
-        dialectrics = [m**2 for m in self.ref_index]
+        dialectrics = self.ref_index**2
 
         # Calculate S and P admittances of the incident media
         admit_s_inc = np.sqrt(dialectrics - dialectrics * np.sin(theta)**2)

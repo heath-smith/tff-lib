@@ -4,6 +4,7 @@ to describe thin films and film stacks.
 """
 
 # import dependencies
+import copy
 import random
 from typing import SupportsIndex, Iterable, Dict
 import numpy as np
@@ -31,11 +32,11 @@ class ThinFilm():
     """
 
     def __init__(
-        self,
-        material:str,
-        thickness:float,
-        wavelengths:Iterable[float],
-        ref_index:Iterable[complex]
+            self,
+            material:str,
+            thickness:float,
+            wavelengths:Iterable[float],
+            ref_index:Iterable[complex]
     ) -> None:
         """
         Initialize class attributes.
@@ -64,8 +65,8 @@ class ThinFilm():
 
         # set attributes
         self.material = str(material).upper()
-        self.wavelengths = [float(x) for x in wavelengths]
-        self.ref_index = [complex(y) for y in ref_index]
+        self.wavelengths = np.array([float(x) for x in wavelengths])
+        self.ref_index = np.array([complex(y) for y in ref_index])
 
     @property
     def thickness(self) -> float:
@@ -104,9 +105,9 @@ class ThinFilm():
         wavelengths, refractive indices, and material attributes.
         """
 
-        if not self.wavelengths == film.wavelengths:
+        if not all(self.wavelengths == film.wavelengths):
             raise ValueError("Wavelength values must be equivalent to add thin films.")
-        if not self.ref_index == film.ref_index:
+        if not all(self.ref_index == film.ref_index):
             raise ValueError("Refractive indices must be equivalent to add thin films.")
         if not self.material == film.material:
             raise ValueError("'material' values must be equivalent to add thin films.")
@@ -122,9 +123,9 @@ class ThinFilm():
         values.
         """
 
-        if not self.wavelengths == film.wavelengths:
+        if not all(self.wavelengths == film.wavelengths):
             raise ValueError("Wavelength values must be equivalent to add thin films.")
-        if not self.ref_index == film.ref_index:
+        if not all(self.ref_index == film.ref_index):
             raise ValueError("Refractive indices must be equivalent to add thin films.")
         if not self.material == film.material:
             raise ValueError("'material' values must be equivalent to add thin films.")
@@ -279,10 +280,10 @@ class FilmStack():
             raise ValueError("film stack must contain at least 1 layer")
 
         # because films is mutable, python will re-use the 'films' object.
-        # to avoid erroneous behavior, create a new object for _stack so
-        # films will be re-evaluated each time it is changed
+        # to avoid erroneous behavior, create a new object (ie: deep copy)
+        # for _stack so films will be re-evaluated each time setter is called
         # ref ---> https://python-guide.readthedocs.io/en/latest/writing/gotchas/
-        self._stack = [f for f in films]
+        self._stack = copy.deepcopy(films)
 
     def insert_layer(self, layer: ThinFilm, index: SupportsIndex) -> None:
         """
@@ -293,8 +294,7 @@ class FilmStack():
         ## must alternate between 'H' and 'L' material.. so layers cannot
         ## just be inserted freely...
 
-        #self._stack.insert(index, layer)
-        raise NotImplementedError
+        ## self._stack.insert(index, layer)
 
     def append_layer(self, layer: ThinFilm) -> None:
         """
@@ -336,7 +336,7 @@ class FilmStack():
 
     def admittance(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
         """
-        Calculate admittances of thin film filter.
+        Calculate admittances of the film stack.
 
         Parameters
         -------------
@@ -355,21 +355,22 @@ class FilmStack():
         https://www.svc.org/DigitalLibrary/documents/2008_Summer_AMacleod.pdf
         """
 
-        dialec_med = [m**2 for m in inc_medium.ref_index]
-        dialec_films = [film**2 for film in self.matrix]
+        # calculate complex dialectric constants
+        dialec_med = inc_medium.ref_index**2
+        dialec_films = self.matrix**2
+
+        # allocate memory to store results
+        admit_s = np.ones_like(self.matrix)
+        admit_p = np.ones_like(self.matrix)
+        delta = np.ones_like(self.matrix)
 
         # Calculate admittances & phase factors for each layer
-        admit_s = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        admit_p = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-        delta = np.ones((self.num_layers, len(self.layers[0].wavelengths)))
-
-        # iterate each layer in thin film stack
-        for i, lyr in enumerate(self.layers):
+        for i, lyr in enumerate(self.stack):
             admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
             admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
             delta[i, :] = (
                 2 * np.pi * lyr.thickness * np.sqrt(
-                dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / self.layers[0].wavelengths
+                dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / lyr.wavelengths
 
         # Flip layer-based arrays ns_film, np_film, delta
         # since the last layer is the top layer
@@ -418,18 +419,23 @@ class FilmStack():
 
         # Initialize the characteristic matrices
         matrices = {
-            'S11': np.ones(np.shape(elements['s11'])[1]),
-            'S12': np.zeros(np.shape(elements['s11'])[1]),
-            'S21': np.zeros(np.shape(elements['s11'])[1]),
-            'S22': np.ones(np.shape(elements['s11'])[1]),
-            'P11': np.ones(np.shape(elements['p11'])[1]),
-            'P12': np.zeros(np.shape(elements['p11'])[1]),
-            'P21': np.zeros(np.shape(elements['p11'])[1]),
-            'P22': np.ones(np.shape(elements['p11'])[1])
+            'S11': np.ones_like(elements['s11'][0, :]),
+            'S12': np.zeros_like(elements['s11'][0, :]),
+            'S21': np.zeros_like(elements['s11'][0, :]),
+            'S22': np.ones_like(elements['s11'][0, :]),
+            'P11': np.ones_like(elements['p11'][0, :]),
+            'P12': np.zeros_like(elements['p11'][0, :]),
+            'P21': np.zeros_like(elements['p11'][0, :]),
+            'P22': np.ones_like(elements['p11'][0, :])
         }
 
-        for i in range(np.shape(elements['s11'])[0]):
-            _matrices = matrices
+        # calculate the matrix values for each layer
+        for i in range(self.num_layers):
+
+            # deep copy previous matrices to avoid
+            # complications with mutable objects
+            _matrices = copy.deepcopy(matrices)
+
             matrices['S11'] = ((_matrices['S11'] * elements['s11'][i, :])
                                 + (_matrices['S12'] * elements['s21'][i, :]))
             matrices['S12'] = ((_matrices['S11'] * elements['s12'][i, :])

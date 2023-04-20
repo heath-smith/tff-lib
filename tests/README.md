@@ -18,8 +18,25 @@ The data file is structured in the following way:
     "output": {
         "effective_index": Iterable[float],
         "path_length": Iterable[float],
-        "char_matrix": Dict[str, Iterable[complex]],
-        "admit_delta": Dict[str, Iterable[float]],
+        "char_matrix": {
+            "S11": Iterable[float],
+            "S12": Iterable[float],
+            "S21": Iterable[float],
+            "S22": Iterable[float],
+            "P11": Iterable[float],
+            "P12": Iterable[float],
+            "P21": Iterable[float],
+            "P22": Iterable[float]
+        },
+        "admit_delta": {
+            "ns_inc": Iterable[float],
+            "np_inc": Iterable[float],
+            "ns_sub": Iterable[float],
+            "np_sub": Iterable[float],
+            "ns_film": Iterable[float],
+            "np_film": Iterable[float],
+            "delta": Iterable[float]
+        },
         "filspec": Dict[str, Iterable[float]],
         "fresnel_bare": Dict[str, Iterable[float]],
         "fresnel_film": Dict[str, Iterable[float]]
