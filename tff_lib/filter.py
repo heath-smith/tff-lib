@@ -43,7 +43,7 @@ class ThinFilmFilter():
         self.film_stack = film_stack
         self.incident_medium = incident_medium
 
-    def fresnel_coefficients(self, theta:float, reflection:str) -> Dict[str, NDArray]:
+    def fresnel_coefficients(self, theta: float, reflection: str) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of filter given the
         substrate admittance and incident medium admittance.
@@ -104,7 +104,7 @@ class ThinFilmFilter():
 
         return fresnel
 
-    def filter_spectrum(self, theta:float) -> Dict[str, NDArray]:
+    def filter_spectrum(self, theta: float) -> Dict[str, NDArray]:
         """
         Calculates the transmission and reflection spectra of the
         thin-film interference filter.

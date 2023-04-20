@@ -38,7 +38,14 @@ The data file is structured in the following way:
             "delta": Iterable[float]
         },
         "filspec": Dict[str, Iterable[float]],
-        "fresnel_bare": Dict[str, Iterable[float]],
+        "fresnel_bare": {
+            "Ts": Iterable[float],
+            "Tp": Iterable[float],
+            "Rs": Iterable[float],
+            "Rp": Iterable[float],
+            "rs": Iterable[float],
+            "rp": Iterable[float]
+        },
         "fresnel_film": Dict[str, Iterable[float]]
     }
 }

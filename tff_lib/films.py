@@ -79,25 +79,7 @@ class ThinFilm():
     def thickness(self, new_thickness:float):
         if new_thickness <= 0:
             raise ValueError("thickness must be greater than 0")
-        self._thickness = new_thickness
-
-    def split_film(self):
-        """
-        Split the thin film layer into two layers with height
-        1/2 of the calling instance. Reduces calling instance
-        thickness to 1/2 its original value.
-
-        Returns
-        ----------
-        ThinFilm() object with thickness value half of calling instance
-        thickness attribute.
-        """
-
-        new_thickness = self.thickness * 0.5
-        self.thickness = new_thickness
-
-        return ThinFilm(
-            self.material, new_thickness, self.wavelengths, self.ref_index)
+        self._thickness = float(new_thickness)
 
     def __add__(self, film:'ThinFilm'):
         """
@@ -134,6 +116,24 @@ class ThinFilm():
 
         return type(self)(self.material, self.thickness, self.wavelengths, self.ref_index)
 
+    def split_film(self):
+        """
+        Split the thin film layer into two layers with height
+        1/2 of the calling instance. Reduces calling instance
+        thickness to 1/2 its original value.
+
+        Returns
+        ----------
+        ThinFilm() object with thickness value half of calling instance
+        thickness attribute.
+        """
+
+        new_thickness = self.thickness * 0.5
+        self.thickness = new_thickness
+
+        return ThinFilm(
+            self.material, new_thickness, self.wavelengths, self.ref_index)
+
 
 class FilmStack():
     """
@@ -144,7 +144,7 @@ class FilmStack():
     ----------
         stack: Iterable[ThinFilm], Read-Write, list of thin film layers
         total_thick: float, ReadOnly, total thickness of stack
-        num_layers: float, Read-Only, number of layers in stack
+        num_layers: int, Read-Only, number of layers in stack
         layers: Iterable[float], Read-Write, layer thickness values
         matrix: NDArray, Read-Only, matrix of refractive indices for each layer
 
@@ -276,8 +276,15 @@ class FilmStack():
 
     @stack.setter
     def stack(self, films:Iterable[ThinFilm]):
+
+        # verify there is at least 1 film
         if len(films) < 1:
             raise ValueError("film stack must contain at least 1 layer")
+
+        # validate the wavelengths of each film
+        for i, film in enumerate(films):
+            if not all(film.wavelengths == films[0].wavelengths):
+                raise ValueError("All films must have same wavelength values.")
 
         # because films is mutable, python will re-use the 'films' object.
         # to avoid erroneous behavior, create a new object (ie: deep copy)
@@ -334,7 +341,7 @@ class FilmStack():
         """
         return self._stack[index]
 
-    def admittance(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
+    def admittance(self, inc_medium: OpticalMedium, theta: float) -> Dict[str, NDArray]:
         """
         Calculate admittances of the film stack.
 
@@ -380,7 +387,7 @@ class FilmStack():
 
         return {'s': admit_s, 'p': admit_p, 'delta': delta}
 
-    def char_matrix(self, inc_medium:OpticalMedium, theta:float) -> Dict[str, NDArray]:
+    def char_matrix(self, inc_medium: OpticalMedium, theta: float) -> Dict[str, NDArray]:
         """
         Calculates the characteristic matrix for a thin film stack.
 

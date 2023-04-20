@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# drawio xml file
+.$*
+
 # Distribution / packaging
 .Python
 build/

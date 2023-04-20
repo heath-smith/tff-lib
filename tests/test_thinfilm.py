@@ -32,9 +32,10 @@ class TestThinFilm(unittest.TestCase):
 
         # static navigation to data directory and output directory
         cls.dir = os.path.join(Path(__file__).resolve().parent.parent, r'data')
+        cls.data_file = os.path.join(cls.dir, 'test_data.json')
 
         # read in json file with test input data
-        with open(os.path.join(cls.dir, 'test_data.json')) as dat:
+        with open(cls.data_file, 'r', encoding='utf=8') as dat:
             cls.test_data = json.load(dat)
 
         # setup input data from test_expected.json
@@ -94,40 +95,40 @@ class TestThinFilm(unittest.TestCase):
         test operators +/-
         """
 
-        t1 = ThinFilm(
+        tf1 = ThinFilm(
             self._material,
             self._thickness,
             self._wavelengths,
             self._ref_index)
 
 
-        t2 = ThinFilm(
+        tf2 = ThinFilm(
             self._material,
             1.0,
             self._wavelengths,
             self._ref_index)
 
-        t3 = t1 + t2
-        t4 = t2 - t1
+        tf3 = tf1 + tf2
+        tf4 = tf2 - tf1
 
-        self.assertEqual(t3.thickness, 1.5)
-        self.assertEqual(t4.thickness, 0.5)
+        self.assertEqual(tf3.thickness, 1.5)
+        self.assertEqual(tf4.thickness, 0.5)
 
     def test_thin_film_split_layer(self):
         """
         test split_layer()
         """
 
-        t1 = ThinFilm(
+        tf1 = ThinFilm(
             self._material,
             self._thickness,
             self._wavelengths,
             self._ref_index)
 
-        t2 = t1.split_film()
+        tf2 = tf1.split_film()
 
-        self.assertEqual(t1.thickness, self._thickness * 0.5)
-        self.assertEqual(t2.thickness, self._thickness * 0.5)
+        self.assertEqual(tf1.thickness, self._thickness * 0.5)
+        self.assertEqual(tf2.thickness, self._thickness * 0.5)
 
     @classmethod
     def tearDownClass(cls):

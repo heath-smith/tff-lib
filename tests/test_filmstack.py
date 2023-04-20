@@ -36,9 +36,10 @@ class TestFilmStack(unittest.TestCase):
 
         # static navigation to data directory and output directory
         cls.dir = os.path.join(Path(__file__).resolve().parent.parent, r'data')
+        cls.data_file = os.path.join(cls.dir, 'test_data.json')
 
         # read in json file with test input data
-        with open(os.path.join(cls.dir, 'test_data.json')) as dat:
+        with open(cls.data_file, 'r', encoding='utf=8') as dat:
             cls.test_data = json.load(dat)
 
         # set decimal precision
@@ -69,7 +70,7 @@ class TestFilmStack(unittest.TestCase):
         ]
 
         # test total thick
-        cls._total_thick = sum([l[1] for l in cls._layers])
+        cls._total_thick = sum(l[1] for l in cls._layers)
 
         # test matrix
         cls._matrix = [
@@ -137,9 +138,9 @@ class TestFilmStack(unittest.TestCase):
             (len(stk.matrix), len(stk.matrix[0])))
 
         # assert matrix property values are valid
-        for x in range(len(self._matrix)):
-            for y in range(len(self._matrix[x])):
-                self.assertEqual(stk.matrix[x][y], self._matrix[x][y])
+        for i,xval in enumerate(self._matrix):
+            for j,yval in enumerate(xval):
+                self.assertEqual(stk.matrix[i][j], yval)
 
     def test_film_stack_init_kwargs(self):
         """
@@ -218,7 +219,7 @@ class TestFilmStack(unittest.TestCase):
 
         stk = FilmStack(self._stack)
 
-        T = np.zeros(1000)
+        t_avg = np.zeros(1000)
         for i in range(1000):
             # time the execution
             start = time.perf_counter()
@@ -227,11 +228,11 @@ class TestFilmStack(unittest.TestCase):
 
             # end time
             end = time.perf_counter()
-            T[i] = (end - start)
+            t_avg[i] = end - start
 
         # average time
-        t = np.mean(T)
-        sys.stdout.write(f"\nAvg Time= {round(t, 4)} seconds.\n")
+        t_avg = np.mean(t_avg)
+        sys.stdout.write(f"\nAvg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_array_almost_equal(
             self._admittance['ns_film'], adm['s'], decimal=self._precision)
@@ -247,8 +248,7 @@ class TestFilmStack(unittest.TestCase):
 
         stk = FilmStack(self._stack)
 
-
-        T = np.zeros(1000)
+        t_avg = np.zeros(1000)
         for i in range(1000):
             # time the execution
             start = time.perf_counter()
@@ -258,11 +258,11 @@ class TestFilmStack(unittest.TestCase):
 
             # end time
             end = time.perf_counter()
-            T[i] = (end - start)
+            t_avg[i] = end - start
 
         # average time
-        t = np.mean(T)
-        sys.stdout.write(f"\nAvg Time= {round(t, 4)} seconds.\n")
+        t_avg = np.mean(t_avg)
+        sys.stdout.write(f"\nAvg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_array_almost_equal(
             self._char_matrix['S11'], cmat['S11'], decimal=self._precision)

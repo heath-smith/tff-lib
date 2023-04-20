@@ -51,7 +51,7 @@ class OpticalMedium():
         self.ref_index = np.array([complex(y) for y in ref_index])
         self.name = str(name)
 
-    def admittance(self, theta:float) -> Dict[str, NDArray]:
+    def admittance(self, theta: float) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of the incident medium.
 

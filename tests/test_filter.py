@@ -1,12 +1,12 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 """
-This module contains the test suit for the Substrate
+This module contains the test suit for the ThinFilmFilter
 class.
 
 Usage
 ---------
->>> python -m unittest -v tests.test_substrate
+>>> python -m unittest -v tests.test_filter
 """
 
 # import external packages
@@ -18,14 +18,14 @@ import json
 import time
 import numpy as np
 import numpy.testing as nptest
-from tff_lib import ThinFilm, OpticalMedium
+from tff_lib import ThinFilm, OpticalMedium, Substrate, FilmStack
 
 # class under test
-from tff_lib import Substrate
+from tff_lib import ThinFilmFilter
 
-class TestFilmStack(unittest.TestCase):
+class TestThinFilmFilter(unittest.TestCase):
     """
-    Test suite for Substrate() class.
+    Test suite for ThinFilmFilter() class.
     """
 
     @classmethod
@@ -47,12 +47,25 @@ class TestFilmStack(unittest.TestCase):
 
         # setup input data from test_expected.json
         cls._theta = 0.0
-        cls._thickness = cls.test_data['input']['sub_thick']
+        cls._sub_thickness = cls.test_data['input']['sub_thick']
         cls._wavelengths = cls.test_data['input']['wv']
-        cls._ref_index = cls.test_data['input']['substrate']
-        cls._admittance = cls.test_data['output']['admit_delta']
-        cls._path_length = cls.test_data['output']['path_length']
-        cls._fresnel = cls.test_data['output']['fresnel_bare']
+        cls._high_mat = [complex(x) for x in cls.test_data['input']['high_mat']]
+        cls._low_mat = [complex(x) for x in cls.test_data['input']['low_mat']]
+        cls._layers = cls.test_data['input']['layers']
+        cls._sub_ref_index = cls.test_data['input']['substrate']
+        cls._fresnel = cls.test_data['output']['fresnel_film']
+        cls._filspec = cls.test_data['output']['filspec']
+
+        # generate test ThinFilmFilter
+        cls._stack = [
+            ThinFilm(
+                lyr[0],
+                lyr[1],
+                cls._wavelengths,
+                cls._high_mat if lyr[0] == 'H' else cls._low_mat
+            )
+            for lyr in cls._layers
+        ]
 
         # test OpticalMedium (air)
         cls._medium = OpticalMedium(
@@ -61,24 +74,16 @@ class TestFilmStack(unittest.TestCase):
             'air'
         )
 
-    def test_substrate_init_defaults(self):
-        """
-        PENDING -----> test __init__()
-        """
+        # test substrate
+        cls._substrate = Substrate(
+            cls._sub_thickness, cls._wavelengths, cls._sub_ref_index)
 
-    def test_absorption_coefficients(self):
-        """
-        PENDING -----> test absorption_coefficients()
-        """
+        # test FilmStack
+        cls._filmstack = FilmStack(cls._stack)
 
-    def test_effective_index(self):
+    def test_filter_init_(self):
         """
-        PENDING -----> test effective_index()
-        """
-
-    def test_path_length(self):
-        """
-        PENDING -----> test path_length()
+        test __init__()
         """
 
     def test_fresnel_coefficients(self):
@@ -86,12 +91,12 @@ class TestFilmStack(unittest.TestCase):
         PENDING -----> test fresnel_coefficients()
         """
 
-    def test_admittance(self):
+    def test_filter_spectrum(self):
         """
-        PENDING -----> test admittance()
+        PENDING -----> test filter_spectrum()
         """
 
-    def test_substrate_invalid_inputs(self):
+    def test_filter_invalid_inputs(self):
         """
         PENDING -----> test __init__() with invalid input values
         """

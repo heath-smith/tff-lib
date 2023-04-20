@@ -15,7 +15,7 @@ class Substrate():
     -----------
         thickness: float, thickness in mm
         wavelengths: Iterable[float], 1-D wavelength values
-        ref_index: Iterable[complex] 1-D complex refractive indices
+        ref_index: Iterable[complex], 1-D complex refractive indices
     """
 
     def __init__(
@@ -44,21 +44,21 @@ class Substrate():
         self.wavelengths = np.array([float(x) for x in wavelengths])
         self.ref_index = np.array([complex(y) for y in ref_index])
 
-    def absorption_coefficients(self, n:int = 4) -> NDArray:
+    def absorption_coefficients(self, n_ref: int = 4) -> NDArray:
         """
-        Calculate the absorption coefficient for n reflections.
+        Calculate the absorption coefficient for n_ref reflections.
 
         Parameters
         ----------
-        n: int, the number of reflections (default 4)
+        n_ref: int, the number of reflections (default 4)
 
         Returns
         ----------
         NDArray
         """
-        return (n * np.pi * np.imag(self.ref_index)) / self.wavelengths
+        return (n_ref * np.pi * np.imag(self.ref_index)) / self.wavelengths
 
-    def effective_index(self, theta:float) -> NDArray:
+    def effective_index(self, theta: float) -> NDArray:
         """
         Calculates the effective substrate refractive index for abs. substrates.
 
@@ -72,13 +72,18 @@ class Substrate():
         """
 
         # calculate the effective substrate refractive index
-        inside1 = ((np.imag(self.ref_index)**2 + np.real(self.ref_index)**2)**2 + 2 * (np.imag(self.ref_index) - np.real(self.ref_index))
-                    * (np.imag(self.ref_index) + np.real(self.ref_index)) * np.sin(theta)**2 + np.sin(theta)**4)
-        inside2 = 0.5 * (-np.imag(self.ref_index)**2 + np.real(self.ref_index)**2 + np.sin(theta)**2 + np.sqrt(inside1))
+        inside1 = ((np.imag(self.ref_index)**2 + np.real(self.ref_index)**2)**2
+                    + 2 * (np.imag(self.ref_index) - np.real(self.ref_index))
+                    * (np.imag(self.ref_index) + np.real(self.ref_index))
+                    * np.sin(theta)**2 + np.sin(theta)**4)
+        inside2 = 0.5 * (-np.imag(self.ref_index)**2
+                        + np.real(self.ref_index)**2
+                        + np.sin(theta)**2
+                        + np.sqrt(inside1))
 
         return np.sqrt(inside2)
 
-    def path_length(self, inc_medium:OpticalMedium, theta:float) -> NDArray:
+    def path_length(self, inc_medium: OpticalMedium, theta: float) -> NDArray:
         """
         Calculates the estimated optical path length through substrate
         given incident medium and incident angle.
@@ -95,8 +100,9 @@ class Substrate():
 
         # calculate the numerator and denominator
         num = self.thickness * (10**6)
-        den = np.sqrt(
-            1 - (np.abs(inc_medium.ref_index)**2 * (np.sin(theta)**2) / self.effective_index(theta)**2))
+        den = np.sqrt(1 - (np.abs(inc_medium.ref_index)**2
+                           * (np.sin(theta)**2)
+                           / self.effective_index(theta)**2))
 
         # return the path length
         return num / den
@@ -111,7 +117,7 @@ class Substrate():
 
         Parameters
         -----------
-        inc_medium: OpticalMedium, complex refractive index on incident medium (i_n = x+y*j)
+        inc_medium: OpticalMedium, complex refractive index on incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -128,15 +134,24 @@ class Substrate():
         """
 
         if not self.ref_index.shape == inc_medium.ref_index.shape:
-            raise ValueError(f'shaped not equal: {self.ref_index.shape} != {inc_medium.ref_index.shape}.')
+            raise ValueError(
+                f'shaped not equal: {self.ref_index.shape} != {inc_medium.ref_index.shape}.')
 
         # Calculation of the Fresnel Amplitude Coefficients
-        rs_num = (inc_medium.ref_index * np.cos(theta)) - np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
-        rs_den = (inc_medium.ref_index * np.cos(theta)) + np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
+        rs_num = (inc_medium.ref_index * np.cos(theta)
+                  - np.sqrt(self.ref_index**2- inc_medium.ref_index**2 * np.sin(theta)**2))
+        rs_den = (inc_medium.ref_index * np.cos(theta)
+                  + np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
         r_s = rs_num / rs_den
 
-        rp_num = self.ref_index**2 * np.cos(theta) - inc_medium.ref_index * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
-        rp_den = self.ref_index**2 * np.cos(theta) + inc_medium.ref_index * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2)
+        rp_num = (self.ref_index**2
+                  * np.cos(theta)
+                  - inc_medium.ref_index
+                  * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
+        rp_den = (self.ref_index**2
+                  * np.cos(theta)
+                  + inc_medium.ref_index
+                  * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
         r_p = -rp_num / rp_den
 
         # Calculation of Fresnel Intensities for bare substrate interface
@@ -154,9 +169,9 @@ class Substrate():
 
     def admittance(
             self,
-            inc_medium:OpticalMedium,
-            theta:float,
-            use_eff_idx:bool=False
+            inc_medium: OpticalMedium,
+            theta: float,
+            use_eff_idx: bool = False
     ) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of substrate and incident
@@ -187,7 +202,7 @@ class Substrate():
         # calculate complex dialectric constants (square the values)
         # for both the substrate and the incident medium
         if use_eff_idx:
-            sub_dialectrics = self.effective_index()**2
+            sub_dialectrics = self.effective_index(theta)**2
         else:
             sub_dialectrics = self.ref_index**2
 
