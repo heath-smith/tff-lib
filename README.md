@@ -53,4 +53,4 @@ The diagram below shows the basic structure of tff_lib. tff_lib provides interfa
 to most of the common elements used in a thin-film optical filter design, including
 ThinFilm, FilmStack, ThinFilmFilter, Substrate, and OpticalMedium. Additionally, tff_lib supports a RandomFilmStack which can be used in some exhaustive search
 optimization applications. There is also a custom error class, WritePropertyError which is used to safeguard read-only class properties.
-![Diagram](class_diagram.svg)
+![Diagram](https://dev.azure.com/ThorlabsSpectralWorks/Python%20Packages/_git/tff-lib?path=/class_diagram.svg)
