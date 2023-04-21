@@ -20,7 +20,7 @@ class OpticalMedium():
     Attributes
     ----------
         wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
-        ref_index: Iterable[complex],1-D array of complex refractive indices
+        ref_index: Iterable[complex], 1-D array of complex refractive indices
         name: str, the name of the medium (e.g. air, water, glass)
     """
 
