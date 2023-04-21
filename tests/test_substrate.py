@@ -16,9 +16,8 @@ import sys
 import os
 import json
 import time
-import numpy as np
 import numpy.testing as nptest
-from tff_lib import ThinFilm, OpticalMedium
+from tff_lib import OpticalMedium
 
 # class under test
 from tff_lib import Substrate
@@ -61,10 +60,20 @@ class TestFilmStack(unittest.TestCase):
             'air'
         )
 
-    def test_substrate_init_defaults(self):
+    def test_substrate_init(self):
         """
-        PENDING -----> test __init__()
+        test __init__()
         """
+
+        sub = Substrate(self._thickness, self._wavelengths, self._ref_index)
+
+
+        # assert attributes are valid
+        self.assertEqual(self._thickness, sub.thickness)
+        nptest.assert_array_almost_equal(
+            self._wavelengths, sub.wavelengths, decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._ref_index, sub.ref_index, decimal=self._precision)
 
     def test_absorption_coefficients(self):
         """
