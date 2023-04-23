@@ -16,70 +16,59 @@ class WritePropertyError(Exception):
     Custom property write error class.
     """
 
-class ThinFilm():
+class ThinFilm(OpticalMedium):
     """
-    Abstract object representing a thin optical film.
-
-    Properties
-    ----------
-        thickness: float, Read-Write, layer thickness in nanometers
+    ThinFilm is a child class of OpticalMedium, representing an optical
+    thin-film used to in thin-film filter construction. Inherits all public
+    methods, attributes, and properties of OpticalMedium, with an additional
+    'material' attribute used to denote if film is a high-index or low-index
+    optical material.
 
     Attributes
     ----------
         material: str, 'H' or 'L'
-        wavelengths: Iterable[float], 1-D wavelength array for material
-        ref_index: Iterable[complex], 1-D refractive indices as fx of wavelengths
+
+    See Also
+    ----------
+    >>> tff_lib.OpticalMedium(
+            wavelengths: Iterable[float],
+            ref_index: Iterable[complex],
+            thickness: float
+        ) -> None
     """
 
     def __init__(
             self,
-            material:str,
-            thickness:float,
-            wavelengths:Iterable[float],
-            ref_index:Iterable[complex]
+            wavelengths: Iterable[float],
+            ref_index: Iterable[complex],
+            thickness: float,
+            material: str
     ) -> None:
         """
         Initialize class attributes.
 
         Parameters
         ----------
-        material: str, 'H' or 'L' (case-insensitive)
-        thickness: float, layer thickness in nanometers, must be greater than zero
         wavelengths: Iterable[float], 1-D wavelength array for material
         ref_index: Iterable[complex], 1-D refractive indices as f(x) of wavelength
+        thickness: float, layer thickness in nanometers, must be greater than zero
+        material: str, 'H' or 'L' (case-insensitive)
 
         Raises
         ----------
-        ValueError, if len(wavelenghts) != len(ref_index) or material not in
-            ('H', 'L')
+        ValueError, if material not in ('H', 'L')
         """
 
         # validate inputs
         if str(material).upper() not in ('H', 'L'):
             raise ValueError(f"material must be one of 'H' or 'L'. received {material}")
-        if not len(wavelengths) == len(ref_index):
-            raise ValueError("len(wavelengths) and len(ref_index) must be equal.")
 
-        # set thickness using setter
+        # set properties and attributes
         self.thickness = float(thickness)
-
-        # set attributes
         self.material = str(material).upper()
-        self.wavelengths = np.array([float(x) for x in wavelengths])
-        self.ref_index = np.array([complex(y) for y in ref_index])
 
-    @property
-    def thickness(self) -> float:
-        """
-        float, layer thickness in nanometers, must be greater than zero
-        """
-        return self._thickness
-
-    @thickness.setter
-    def thickness(self, new_thickness:float):
-        if new_thickness <= 0:
-            raise ValueError("thickness must be greater than 0")
-        self._thickness = float(new_thickness)
+        # call parent __init__
+        super().__init__(wavelengths, ref_index, thickness)
 
     def __add__(self, film:'ThinFilm'):
         """
@@ -96,7 +85,7 @@ class ThinFilm():
 
         self.thickness = self.thickness + film.thickness    # update self.thickness
 
-        return type(self)(self.material, self.thickness, self.wavelengths, self.ref_index)
+        return type(self)(self.wavelengths, self.ref_index, self.thickness, self.material)
 
     def __sub__(self, film:'ThinFilm'):
         """
@@ -114,7 +103,7 @@ class ThinFilm():
 
         self.thickness = abs(self.thickness - film.thickness)    # update self.thickness
 
-        return type(self)(self.material, self.thickness, self.wavelengths, self.ref_index)
+        return type(self)(self.wavelengths, self.ref_index, self.thickness, self.material)
 
     def split_film(self):
         """
@@ -132,7 +121,7 @@ class ThinFilm():
         self.thickness = new_thickness
 
         return ThinFilm(
-            self.material, new_thickness, self.wavelengths, self.ref_index)
+            self.wavelengths, self.ref_index, new_thickness, self.material)
 
 
 class FilmStack():

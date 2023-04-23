@@ -7,22 +7,27 @@ from numpy.typing import NDArray
 import numpy as np
 from .medium import OpticalMedium
 
-class Substrate():
+class Substrate(OpticalMedium):
     """
-    Abstract object representing a physical substrate.
+    Child class of OpticalMedium, represents an optical substrate
+    which can be used in the construction of a thin-film optical
+    filter. Inherits all public attributes, properties, and methods
+    of OpticalMedium.
 
-    Attributes
-    -----------
-        thickness: float, thickness in mm
-        wavelengths: Iterable[float], 1-D wavelength values
-        ref_index: Iterable[complex], 1-D complex refractive indices
+    See Also
+    ----------
+    >>> tff_lib.OpticalMedium(
+            wavelengths: Iterable[float],
+            ref_index: Iterable[complex],
+            thickness: float
+        ) -> None
     """
 
     def __init__(
             self,
-            thickness: float,
             wavelengths: Iterable[float],
-            ref_index: Iterable[complex]
+            ref_index: Iterable[complex],
+            thickness: float
     ) -> None:
         """
         Initialize the class attributes. Raises ValueError if wavelengths
@@ -30,19 +35,12 @@ class Substrate():
 
         Parameters
         ----------
-        thickness: float, thickness in mm
         wavelengths: Iterable[float], 1-D wavelength values
         ref_index: Iterable[complex] 1-D complex refractive indices
+        thickness: float, substrate thickness in nanometers
         """
 
-        if not len(wavelengths) == len(ref_index):
-            raise ValueError("wavelengths must be same length as ref_index")
-        if thickness <= 0.0:
-            raise ValueError("thickness must be greater than 0")
-
-        self.thickness = float(thickness)
-        self.wavelengths = np.array([float(x) for x in wavelengths])
-        self.ref_index = np.array([complex(y) for y in ref_index])
+        super().__init__(wavelengths, ref_index, thickness)
 
     def absorption_coefficients(self, n_ref: int = 4) -> NDArray:
         """
@@ -98,14 +96,13 @@ class Substrate():
         (ArrayLike) Length of the path through the substrate.
         """
 
-        # calculate the numerator and denominator
-        num = self.thickness * (10**6)
+        # calculate the denominator
         den = np.sqrt(1 - (np.abs(inc_medium.ref_index)**2
                            * (np.sin(theta)**2)
                            / self.effective_index(theta)**2))
 
         # return the path length
-        return num / den
+        return self.thickness / den
 
     def fresnel_coefficients(
             self,
@@ -170,8 +167,7 @@ class Substrate():
     def admittance(
             self,
             inc_medium: OpticalMedium,
-            theta: float,
-            use_eff_idx: bool = False
+            theta: float
     ) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of substrate and incident
@@ -182,17 +178,15 @@ class Substrate():
         inc_medium: OpticalMedium, complex refractive index of incident medium
         theta: float, angle of incidence of radiation in radians
 
-        kwargs
-        ----------
-        use_eff_idx: bool, use the effective refractive index (default False)
-
         Returns
         --------------
-        (Tuple)
-        (s-polarized admittance of the substrate medium,
-        p-polarized admittance of the substrate medium)
+        Dict[str, NDArray] {
+            's': s-polarized admittance of the medium-incident interface,
+            'p': p-polarized admittance of the medium-incident interface }
 
-        Raises ValueError if inc_medium shape does not match
+        Raises
+        ----------
+        ValueError if inc_medium shape does not match
         substrate.ref_index shape or  theta <= 0.
         """
 
@@ -201,14 +195,52 @@ class Substrate():
 
         # calculate complex dialectric constants (square the values)
         # for both the substrate and the incident medium
-        if use_eff_idx:
-            sub_dialectrics = self.effective_index(theta)**2
-        else:
-            sub_dialectrics = self.ref_index**2
-
+        sub_dialectrics = self.ref_index**2
         med_dialectrics = inc_medium.ref_index**2
 
-        admit_s_sub = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
-        admit_p_sub = sub_dialectrics / admit_s_sub
+        # Calculate S and P admittances
+        admit_s = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
+        admit_p = sub_dialectrics / admit_s
 
-        return {'s': admit_s_sub, 'p': admit_p_sub}
+        return {'s': admit_s, 'p': admit_p}
+
+    def eff_admittance(
+            self,
+            inc_medium: OpticalMedium,
+            theta: float
+    ) -> Dict[str, NDArray]:
+        """
+        Calculates optical admittance of substrate and incident
+        medium interface using the effective refractive index
+        of the substrate.
+
+        args
+        -----------
+        inc_medium: OpticalMedium, complex refractive index of incident medium
+        theta: float, angle of incidence of radiation in radians
+
+        Returns
+        -----------
+        Dict[str, NDArray] {
+            's': s-polarized admittance of the medium-incident interface,
+            'p': p-polarized admittance of the medium-incident interface }
+
+        Raises
+        ----------
+        ValueError if inc_medium shape does not match
+        substrate.ref_index shape or  theta <= 0.
+        """
+
+        if not np.shape(self.ref_index) == np.shape(inc_medium.ref_index):
+            raise ValueError("inc_medium.ref_index shape must match substrate.ref_index")
+
+        # calculate complex dialectric constants (square the values)
+        # for both the substrate and the incident medium
+        sub_dialectrics = self.effective_index(theta)**2
+        med_dialectrics = inc_medium.ref_index**2
+
+        # Calculate S and P admittances
+        admit_s = np.sqrt(sub_dialectrics - med_dialectrics * np.sin(theta)**2)
+        admit_p = sub_dialectrics / admit_s
+
+        return {'s': admit_s, 'p': admit_p}

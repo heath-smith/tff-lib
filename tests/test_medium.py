@@ -1,7 +1,7 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 """
-This module contains the test suit for the Substrate
+This module contains the test suit for the OpticalMedium
 class.
 
 Usage
@@ -20,7 +20,7 @@ import numpy.testing as nptest
 # class under test
 from tff_lib import OpticalMedium
 
-class TestFilmStack(unittest.TestCase):
+class TestMedium(unittest.TestCase):
     """
     Test suite for Substrate() class.
     """
@@ -55,10 +55,10 @@ class TestFilmStack(unittest.TestCase):
         test __init__()
         """
 
-        opt = OpticalMedium(self._wavelengths, self._ref_index, self._name)
+        opt = OpticalMedium(self._wavelengths, self._ref_index)
 
         # assert attributes are valid
-        self.assertEqual(self._name, opt.name)
+        self.assertEqual(float('inf'), opt.thickness)
         nptest.assert_array_almost_equal(
             self._wavelengths, opt.wavelengths, decimal=self._precision)
         nptest.assert_array_almost_equal(
@@ -69,9 +69,10 @@ class TestFilmStack(unittest.TestCase):
         test admittance()
         """
 
-        opt = OpticalMedium(self._wavelengths, self._ref_index, self._name)
+        opt = OpticalMedium(self._wavelengths, self._ref_index)
 
-        adm = opt.admittance(self._theta)
+        # calculate air-air interface admittance
+        adm = opt.admittance(opt, self._theta)
 
         nptest.assert_array_almost_equal(
             self._admittance['ns_inc'], adm['s'], decimal=self._precision)
@@ -80,20 +81,22 @@ class TestFilmStack(unittest.TestCase):
 
     def test_medium_invalid_inputs(self):
         """
-        PENDING -----> test __init__() with invalid input values
+        test __init__() with invalid input values
         """
 
         # test with shortened wavelength array
         with self.assertRaises(ValueError):
-            OpticalMedium(self._wavelengths[:-2], self._ref_index, self._name)
+            OpticalMedium(self._wavelengths[:-2], self._ref_index)
+
+        # test with negative thickness value
+        with self.assertRaises(ValueError):
+            OpticalMedium(self._wavelengths, self._ref_index, -1)
 
     @classmethod
     def tearDownClass(cls):
         """
         Cleans up any open resources.
         """
-        sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-        sys.stdout.close()
 
 if __name__=='__main__':
     unittest.main()

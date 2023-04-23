@@ -20,14 +20,14 @@ class ThinFilmFilter():
     ----------
         substrate: Substrate, the substrate of the thin film filter
         film_stack: FilmStack, optical thin film stack
-        incident_medium: OpticalMedium,
+        incident: OpticalMedium,
     """
 
     def __init__(
             self,
             substrate: Substrate,
             film_stack: FilmStack,
-            incident_medium: OpticalMedium
+            incident: OpticalMedium
     ) -> None:
         """
         Initializes the ThinFilmFilter class.
@@ -36,12 +36,12 @@ class ThinFilmFilter():
         ----------
         substrate: Substrate, the substrate of the filter
         film_stack: FilmStack, optical thin film stack
-        incident_medium: OpticalMedium, the optical medium
+        incident: OpticalMedium, the optical medium
         """
 
         self.substrate = substrate
         self.film_stack = film_stack
-        self.incident_medium = incident_medium
+        self.incident = incident
 
     def fresnel_coefficients(self, theta: float, reflection: str) -> Dict[str, NDArray]:
         """
@@ -68,15 +68,15 @@ class ThinFilmFilter():
         """
 
         if reflection == 'medium':
-            admit_sub = self.substrate.admittance(self.incident_medium, theta)
-            admit_inc = self.incident_admittance(theta)
-            char_matrix = self.film_stack.char_matrix(self.incident_medium, theta)
+            admit_sub = self.substrate.admittance(self.incident, theta)
+            admit_inc = self.incident.admittance(self.incident, theta)
+            char_matrix = self.film_stack.char_matrix(self.incident, theta)
         elif reflection == 'substrate':
             theta_inverse = np.arcsin(
-                self.incident_medium.ref_index / self.substrate.ref_index * np.sin(theta))
-            admit_sub = self.substrate.admittance(self.incident_medium, theta_inverse)
-            admit_inc = self.incident_admittance(theta_inverse)
-            char_matrix = self.film_stack.char_matrix(self.incident_medium, theta_inverse)
+                self.incident.ref_index / self.substrate.ref_index * np.sin(theta))
+            admit_sub = self.substrate.eff_admittance(self.incident, theta_inverse)
+            admit_inc = self.incident.admittance(self.incident, theta_inverse)
+            char_matrix = self.film_stack.char_matrix(self.incident, theta_inverse)
         else:
             raise ValueError("reflection must be one of 'medium' or 'substrate'")
 
@@ -127,10 +127,10 @@ class ThinFilmFilter():
         """
 
         # Calculate the path length through the substrate
-        sub_p_len = self.substrate.path_length(self.incident_medium, theta)
+        sub_p_len = self.substrate.path_length(self.incident, theta)
 
         # Fresnel coefficients of incident medium / substrate interface
-        sub_fresnel = self.substrate.fresnel_coefficients(self.incident_medium, theta)
+        sub_fresnel = self.substrate.fresnel_coefficients(self.incident, theta)
 
         # reflection originating from incident medium
         inc_med_ref = self.fresnel_coefficients(theta, 'medium')
@@ -139,15 +139,17 @@ class ThinFilmFilter():
         sub_ref = self.fresnel_coefficients(theta, 'substrate')
 
         # calculate the absorption coefficients for multiple reflections
-        alpha = self.substrate.absorption_coefficients(n=4)
+        alpha = self.substrate.absorption_coefficients(n_ref=4)
 
         # calculate filter reflection
         spec = {'Rs': (
-            inc_med_ref['Rs'] + ((inc_med_ref['Ts']**2) * sub_fresnel['Rs'] * np.exp(-2 * alpha * sub_p_len))
+            inc_med_ref['Rs']
+            + ((inc_med_ref['Ts']**2) * sub_fresnel['Rs'] * np.exp(-2 * alpha * sub_p_len))
             / (1 - (sub_ref['Rs'] * sub_fresnel['Rs'] * np.exp(-2 * alpha * sub_p_len)))
         )}
         spec['Rp'] = (
-            inc_med_ref['Rp']  + ((inc_med_ref['Tp']**2)  * sub_fresnel['Rp'] * np.exp(-2 * alpha * sub_p_len))
+            inc_med_ref['Rp']
+            + ((inc_med_ref['Tp']**2)  * sub_fresnel['Rp'] * np.exp(-2 * alpha * sub_p_len))
             / (1 - (sub_ref['Rp']  * sub_fresnel['Rp'] * np.exp(-2 * alpha * sub_p_len)))
         )
         spec['R'] = (spec['Rs'] + spec['Rp']) / 2
@@ -164,4 +166,3 @@ class ThinFilmFilter():
         spec['T'] = (spec['Ts'] + spec['Tp']) / 2
 
         return spec
-

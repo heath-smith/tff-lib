@@ -17,18 +17,21 @@ class OpticalMedium():
     """
     Abstract representation of an optical medium.
 
+    Properties
+    ----------
+        thickness: float, Read-Write, layer thickness in nanometers (>= 0)
+
     Attributes
     ----------
         wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
         ref_index: Iterable[complex], 1-D array of complex refractive indices
-        name: str, the name of the medium (e.g. air, water, glass)
     """
 
     def __init__(
             self,
             wavelengths: Iterable[float],
             ref_index: Iterable[complex],
-            name: str
+            thickness: float = 'inf'
     ) -> None:
         """
         Initializes the OpticalMedium class.
@@ -37,11 +40,12 @@ class OpticalMedium():
         ----------
         wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
         ref_index: Iterable[complex], 1-D array of complex refractive indices
-        name: str, the name of the medium (e.g. air, water, glass)
+        thickness: float, medium thickness in nanometers
 
         Raises
         ----------
-        ValueError if wavelengths and ref_index shapes do not match.
+        ValueError if wavelengths and ref_index shapes do not match or thickness
+            less than 0.
         """
 
         if not len(wavelengths) == len(ref_index):
@@ -49,9 +53,28 @@ class OpticalMedium():
 
         self.wavelengths = np.array([float(x) for x in wavelengths])
         self.ref_index = np.array([complex(y) for y in ref_index])
-        self.name = str(name)
 
-    def admittance(self, theta: float) -> Dict[str, NDArray]:
+        # uses setter to initialize
+        self.thickness = float(thickness)
+
+    @property
+    def thickness(self) -> float:
+        """
+        float, thickness in nanometers, must be greater than zero
+        """
+        return self._thickness
+
+    @thickness.setter
+    def thickness(self, new_thickness:float):
+        if new_thickness <= 0:
+            raise ValueError("thickness must be greater than 0")
+        self._thickness = float(new_thickness)
+
+    def admittance(
+            self,
+            inc_medium: 'OpticalMedium',
+            theta: float
+    ) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of the incident medium.
 
@@ -62,15 +85,17 @@ class OpticalMedium():
         Returns
         --------------
         Dict[str, NDArray] {
-            's': s-polarized admittance of the incident medium,
-            'p': p-polarized admittance of the incident medium }
+            's': s-polarized admittance of the medium-incident interface,
+            'p': p-polarized admittance of the medium-incident interface }
         """
 
         # calculate complex dialectric constants (square the values)
+        # for both the current medium and the incident medium
         dialectrics = self.ref_index**2
+        inc_dialectrics = inc_medium.ref_index**2
 
-        # Calculate S and P admittances of the incident media
-        admit_s_inc = np.sqrt(dialectrics - dialectrics * np.sin(theta)**2)
-        admit_p_inc = dialectrics / admit_s_inc
+        # Calculate S and P admittances
+        admit_s = np.sqrt(dialectrics - inc_dialectrics * np.sin(theta)**2)
+        admit_p = dialectrics / admit_s
 
-        return {'s': admit_s_inc, 'p': admit_p_inc}
+        return {'s': admit_s, 'p': admit_p}

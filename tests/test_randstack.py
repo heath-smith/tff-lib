@@ -61,10 +61,10 @@ class TestRandomFilmStack(unittest.TestCase):
         # generate test FilmStack
         cls._stack = [
             ThinFilm(
-                lyr[0],
-                lyr[1],
                 cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat
+                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
+                lyr[1],
+                lyr[0]
             )
             for lyr in cls._layers
         ]
@@ -99,9 +99,7 @@ class TestRandomFilmStack(unittest.TestCase):
         # test OpticalMedium (air)
         cls._medium = OpticalMedium(
             cls.test_data['input']['wv'],
-            [complex(1.0, 0) for i in cls.test_data['input']['wv']],
-            'air'
-        )
+            [complex(1.0, 0) for i in cls.test_data['input']['wv']])
 
     def test_rand_stack_init_defaults(self):
         """
@@ -123,8 +121,6 @@ class TestRandomFilmStack(unittest.TestCase):
         """
         Cleans up any open resources.
         """
-        sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-        sys.stdout.close()
 
 if __name__=='__main__':
     unittest.main()

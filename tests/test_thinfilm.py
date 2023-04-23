@@ -49,11 +49,10 @@ class TestThinFilm(unittest.TestCase):
         test __init__()
         """
 
-        test_tf = ThinFilm(
-            self._material,
-            self._thickness,
-            self._wavelengths,
-            self._ref_index)
+        test_tf = ThinFilm(self._wavelengths,
+                           self._ref_index,
+                           self._thickness,
+                           self._material)
 
         # assert wavelength and ref_index have equal length
         self.assertEqual(len(test_tf.wavelengths), len(test_tf.ref_index))
@@ -67,46 +66,40 @@ class TestThinFilm(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             # test with negative thickness value
-            ThinFilm(
-                self._material,
-                -1,
-                self._wavelengths,
-                self._ref_index)
+            ThinFilm(self._wavelengths,
+                     self._ref_index,
+                     -1,
+                     self._material)
 
         with self.assertRaises(ValueError):
             # take a slice of wavelengths
-            ThinFilm(
-                self._material,
-                self._thickness,
-                self._wavelengths[:-5],
-                self._ref_index)
+            ThinFilm(self._wavelengths[:-5],
+                     self._ref_index,
+                     self._thickness,
+                     self._material)
 
         with self.assertRaises(ValueError):
             # use invalid material
-            ThinFilm(
-                'wrong material string',
-                self._thickness,
-                self._wavelengths,
-                self._ref_index)
-
+            ThinFilm(self._wavelengths,
+                     self._ref_index,
+                     self._thickness,
+                     'wrong material string')
 
     def test_thin_film_add_subtract(self):
         """
         test operators +/-
         """
 
-        tf1 = ThinFilm(
-            self._material,
-            self._thickness,
-            self._wavelengths,
-            self._ref_index)
+        tf1 = ThinFilm(self._wavelengths,
+                       self._ref_index,
+                       self._thickness,
+                       self._material)
 
 
-        tf2 = ThinFilm(
-            self._material,
-            1.0,
-            self._wavelengths,
-            self._ref_index)
+        tf2 = ThinFilm(self._wavelengths,
+                       self._ref_index,
+                       1.0,
+                       self._material)
 
         tf3 = tf1 + tf2
         tf4 = tf2 - tf1
@@ -119,11 +112,10 @@ class TestThinFilm(unittest.TestCase):
         test split_layer()
         """
 
-        tf1 = ThinFilm(
-            self._material,
-            self._thickness,
-            self._wavelengths,
-            self._ref_index)
+        tf1 = ThinFilm(self._wavelengths,
+                       self._ref_index,
+                       self._thickness,
+                       self._material)
 
         tf2 = tf1.split_film()
 
@@ -135,8 +127,6 @@ class TestThinFilm(unittest.TestCase):
         """
         Cleans up any open resources.
         """
-        sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-        sys.stdout.close()
 
 if __name__=='__main__':
     unittest.main()

@@ -61,10 +61,10 @@ class TestFilmStack(unittest.TestCase):
         # generate test FilmStack
         cls._stack = [
             ThinFilm(
-                lyr[0],
-                lyr[1],
                 cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat
+                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
+                lyr[1],
+                lyr[0]
             )
             for lyr in cls._layers
         ]
@@ -100,7 +100,7 @@ class TestFilmStack(unittest.TestCase):
         cls._medium = OpticalMedium(
             cls.test_data['input']['wv'],
             [complex(1.0, 0) for i in cls.test_data['input']['wv']],
-            'air'
+            float('inf')
         )
 
     def test_film_stack_init_defaults(self):
@@ -164,7 +164,7 @@ class TestFilmStack(unittest.TestCase):
         stk1 = FilmStack(self._stack)
 
         # this layer should work as expected
-        lyr1 = ThinFilm('L', 500.0, self._wavelengths, self._low_mat)
+        lyr1 = ThinFilm(self._wavelengths, self._low_mat, 500.0, 'L')
         stk1.append_layer(lyr1)
 
         # validate last layer is appended correctly
@@ -175,7 +175,7 @@ class TestFilmStack(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             # this layer should give a ValueError
-            lyr2 = ThinFilm('H', 500.0, self._wavelengths, self._high_mat)
+            lyr2 = ThinFilm(self._wavelengths, self._high_mat, 500.0, 'H')
             stk2.append_layer(lyr2)
 
     def test_remove_layer(self):
@@ -188,10 +188,10 @@ class TestFilmStack(unittest.TestCase):
         mock_lyrs = self._layers[0:4] + new_lyr + self._layers[7:]
         mock_stack = [
             ThinFilm(
-                lyr[0],
-                lyr[1],
                 self._wavelengths,
-                self._high_mat if lyr[0] == 'H' else self._low_mat
+                self._high_mat if lyr[0] == 'H' else self._low_mat,
+                lyr[1],
+                lyr[0]
             )
             for lyr in mock_lyrs
         ]
@@ -232,7 +232,7 @@ class TestFilmStack(unittest.TestCase):
 
         # average time
         t_avg = np.mean(t_avg)
-        sys.stdout.write(f"\nAvg Time= {round(t_avg, 4)} seconds.\n")
+        sys.stdout.write(f"\nFilmStack.admittance() Avg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_array_almost_equal(
             self._admittance['ns_film'], adm['s'], decimal=self._precision)
@@ -262,7 +262,7 @@ class TestFilmStack(unittest.TestCase):
 
         # average time
         t_avg = np.mean(t_avg)
-        sys.stdout.write(f"\nAvg Time= {round(t_avg, 4)} seconds.\n")
+        sys.stdout.write(f"\nFilmStack.char_matrix() Avg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_array_almost_equal(
             self._char_matrix['S11'], cmat['S11'], decimal=self._precision)
@@ -296,8 +296,6 @@ class TestFilmStack(unittest.TestCase):
         """
         Cleans up any open resources.
         """
-        sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-        sys.stdout.close()
 
 if __name__=='__main__':
     unittest.main()

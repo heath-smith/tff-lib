@@ -47,7 +47,7 @@ class TestThinFilmFilter(unittest.TestCase):
 
         # setup input data from test_expected.json
         cls._theta = 0.0
-        cls._sub_thickness = cls.test_data['input']['sub_thick']
+        cls._sub_thickness = cls.test_data['input']['sub_thick'] * 10**6
         cls._wavelengths = cls.test_data['input']['wv']
         cls._high_mat = [complex(x) for x in cls.test_data['input']['high_mat']]
         cls._low_mat = [complex(x) for x in cls.test_data['input']['low_mat']]
@@ -59,55 +59,100 @@ class TestThinFilmFilter(unittest.TestCase):
         # generate test ThinFilmFilter
         cls._stack = [
             ThinFilm(
-                lyr[0],
-                lyr[1],
                 cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat
+                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
+                lyr[1],
+                lyr[0]
             )
             for lyr in cls._layers
         ]
 
         # test OpticalMedium (air)
-        cls._medium = OpticalMedium(
+        cls._incident = OpticalMedium(
             cls.test_data['input']['wv'],
-            [complex(1.0, 0) for i in cls.test_data['input']['wv']],
-            'air'
-        )
+            [complex(1.0, 0) for i in cls.test_data['input']['wv']])
 
         # test substrate
         cls._substrate = Substrate(
-            cls._sub_thickness, cls._wavelengths, cls._sub_ref_index)
+            cls._wavelengths, cls._sub_ref_index, cls._sub_thickness)
 
         # test FilmStack
         cls._filmstack = FilmStack(cls._stack)
+
+        # use complex conjugates for fresnel coefficients
+        cls._fresnel_conj = {
+            k: np.conjugate(np.asarray(v).astype(np.complex128))
+            for k,v in cls._fresnel.items()
+        }
 
     def test_filter_init_(self):
         """
         test __init__()
         """
 
+        tff = ThinFilmFilter(self._substrate,
+                             self._filmstack,
+                             self._incident)
+
+        self.assertEqual(self._substrate, tff.substrate)
+        self.assertEqual(self._filmstack, tff.film_stack)
+        self.assertEqual(self._incident, tff.incident)
+
     def test_fresnel_coefficients(self):
         """
-        PENDING -----> test fresnel_coefficients()
+        test fresnel_coefficients()
         """
+
+        tff = ThinFilmFilter(self._substrate,
+                             self._filmstack,
+                             self._incident)
+
+        # test with 'medium' reflection
+        fresnel = tff.fresnel_coefficients(self._theta, 'medium')
+
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['Ts'], fresnel['Ts'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['Tp'], fresnel['Tp'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['Rs'], fresnel['Rs'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['Rp'], fresnel['Rp'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['rs'], fresnel['rs'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel_conj['rp'], fresnel['rp'], decimal=self._precision)
 
     def test_filter_spectrum(self):
         """
-        PENDING -----> test filter_spectrum()
+        test filter_spectrum()
         """
 
-    def test_filter_invalid_inputs(self):
-        """
-        PENDING -----> test __init__() with invalid input values
-        """
+        tff = ThinFilmFilter(self._substrate,
+                             self._filmstack,
+                             self._incident)
+
+        filspec = tff.filter_spectrum(self._theta)
+
+        nptest.assert_almost_equal(
+            self._filspec['T'], filspec['T'], decimal=self._precision, verbose=True)
+        nptest.assert_almost_equal(
+            self._filspec['Ts'], filspec['Ts'], decimal=self._precision, verbose=True)
+        nptest.assert_almost_equal(
+            self._filspec['Tp'], filspec['Tp'], decimal=self._precision, verbose=True)
+        nptest.assert_almost_equal(
+            self._filspec['R'], filspec['R'], decimal=self._precision, verbose=True)
+        nptest.assert_almost_equal(
+            self._filspec['Rs'], filspec['Rs'], decimal=self._precision, verbose=True)
+        nptest.assert_almost_equal(
+            self._filspec['Rp'], filspec['Rp'], decimal=self._precision, verbose=True)
+
 
     @classmethod
     def tearDownClass(cls):
         """
         Cleans up any open resources.
         """
-        sys.stdout.write('\nRunning teardown procedure... SUCCESS ')
-        sys.stdout.close()
 
 if __name__=='__main__':
     unittest.main()
