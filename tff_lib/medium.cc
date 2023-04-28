@@ -200,6 +200,40 @@ static PyMemberDef OpticalMedium_members[] = {
   {NULL}  /* Sentinel */
 };
 
+/* Provide customized getters/setters
+ * for finer control over attributes
+ */
+static int
+OpticalMedium_getthickness(OpticalMedium *self, void *closure) {
+  return self->thickness;
+}
+
+static int
+OpticalMedium_setthickness(OpticalMedium *self, PyObject *value, void *closure) {
+  double tmp = PyFloat_AsDouble(value);
+
+  if (tmp < 0) {
+    if (tmp != -1) {
+      PyErr_SetString(PyExc_ValueError, "thickness must be > 0 or -1 for inf.");
+      return -1;
+    }
+  }
+
+  self->thickness = tmp;
+  return 0;
+}
+
+static PyGetSetDef OpticalMedium_getsetters[] = {
+  {
+    "thickness",
+    (getter) OpticalMedium_getthickness,
+    (setter) OpticalMedium_setthickness,
+    "thickness in nanometers",
+    NULL
+  },
+  {NULL}  /* Sentinel */
+};
+
 static PyObject *
 OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   OpticalMedium *inc = NULL;  // the incident medium object
@@ -320,7 +354,7 @@ static PyTypeObject OpticalMediumType = {
     0,                                                /* tp_iternext */
     OpticalMedium_methods,                            /* tp_methods */
     OpticalMedium_members,                            /* tp_members */
-    0, // type_getsets,                               /* tp_getset */
+    OpticalMedium_getsetters,                         /* tp_getset */
     0,                                                /* tp_base */
     0,                                                /* tp_dict */
     0,                                                /* tp_descr_get */
