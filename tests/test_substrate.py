@@ -12,10 +12,8 @@ Usage
 # import external packages
 import unittest
 from pathlib import Path
-import sys
 import os
 import json
-import time
 import numpy.testing as nptest
 from tff_lib import OpticalMedium
 

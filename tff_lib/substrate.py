@@ -42,67 +42,8 @@ class Substrate(OpticalMedium):
 
         super().__init__(wavelengths, ref_index, thickness)
 
-    def absorption_coefficients(self, n_ref: int = 4) -> NDArray:
-        """
-        Calculate the absorption coefficient for n_ref reflections.
 
-        Parameters
-        ----------
-        n_ref: int, the number of reflections (default 4)
 
-        Returns
-        ----------
-        NDArray
-        """
-        return (n_ref * np.pi * np.imag(self.ref_index)) / self.wavelengths
-
-    def effective_index(self, theta: float) -> NDArray:
-        """
-        Calculates the effective substrate refractive index for abs. substrates.
-
-        Parameters
-        -----------
-        theta: float, angle of incidence of radiation in radians
-
-        Returns
-        ----------
-        (NDArray) Effective substrate refractive index.
-        """
-
-        # calculate the effective substrate refractive index
-        inside1 = ((np.imag(self.ref_index)**2 + np.real(self.ref_index)**2)**2
-                    + 2 * (np.imag(self.ref_index) - np.real(self.ref_index))
-                    * (np.imag(self.ref_index) + np.real(self.ref_index))
-                    * np.sin(theta)**2 + np.sin(theta)**4)
-        inside2 = 0.5 * (-np.imag(self.ref_index)**2
-                        + np.real(self.ref_index)**2
-                        + np.sin(theta)**2
-                        + np.sqrt(inside1))
-
-        return np.sqrt(inside2)
-
-    def path_length(self, inc_medium: OpticalMedium, theta: float) -> NDArray:
-        """
-        Calculates the estimated optical path length through substrate
-        given incident medium and incident angle.
-
-        Parameters
-        -------------
-        inc_medium: OpticalMedium, refractive indices of incident medium
-        theta: float, angle of incidence of radiation in radians
-
-        Returns
-        ------------
-        (ArrayLike) Length of the path through the substrate.
-        """
-
-        # calculate the denominator
-        den = np.sqrt(1 - (np.abs(inc_medium.ref_index)**2
-                           * (np.sin(theta)**2)
-                           / self.effective_index(theta)**2))
-
-        # return the path length
-        return self.thickness / den
 
     def fresnel_coefficients(
             self,

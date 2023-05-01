@@ -1,6 +1,6 @@
 """
-This module contains the Medium class
-representing an optical medium.
+This module contains a wrapper class for the OpticalMedium
+C-Extension class.
 
 Wiki:
 In optics, an optical medium is material through which light and other
@@ -11,91 +11,155 @@ waves propagate in it.
 
 from typing import Iterable, Dict
 from numpy.typing import NDArray
-import numpy as np
+import medium
 
-class OpticalMedium():
+class OpticalMedium(medium.OpticalMedium):
     """
-    Abstract representation of an optical medium.
+    Python wrapper for OpticalMedium C-extension class.
 
     Properties
     ----------
-        thickness: float, Read-Write, layer thickness in nanometers (>= 0)
+        thick: float, thickness in nanometers. -1 if unspecified, or must
+            be greater than zero.
+        ntype: int, one of -1, 0, or 1. Use 1 for a high index material,
+            0 for a low index material, or -1 if not specified.
 
     Attributes
     ----------
-        wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
-        ref_index: Iterable[complex], 1-D array of complex refractive indices
+        waves: Iterable[float], 1-D array of wavelengths in nanometers
+        nref: Iterable[complex], 1-D array of complex refractive indices
+
+
+    Raises
+    ----------
+        ValueError
+            if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
+             waves or nref not 1-D.
     """
 
     def __init__(
             self,
-            wavelengths: Iterable[float],
-            ref_index: Iterable[complex],
-            thickness: float = 'inf'
+            waves: Iterable[float],
+            nref: Iterable[complex],
+            **kwargs
     ) -> None:
         """
         Initializes the OpticalMedium class.
 
-        Parameters
+        args
         ----------
         wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
-        ref_index: Iterable[complex], 1-D array of complex refractive indices
-        thickness: float, medium thickness in nanometers
+        nref: Iterable[complex], 1-D array of complex refractive indices
+
+        kwargs
+        ----------
+        thick: float, medium thickness in nanometers. -1 if unspecified, or must
+            be greater than zero. (default -1)
+        ntype: int, one of -1, 0, or 1. Use 1 for a high index material,
+            0 for a low index material, or -1 if not specified. (default -1)
 
         Raises
         ----------
-        ValueError if wavelengths and ref_index shapes do not match or thickness
-            less than 0.
+        ValueError
+            if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
+             waves or nref not 1-D.
         """
+        super().__init__(waves, nref, **kwargs)
 
-        if not len(wavelengths) == len(ref_index):
-            raise ValueError("length of wavelengths and ref_index must be equal")
-
-        self.wavelengths = np.array([float(x) for x in wavelengths])
-        self.ref_index = np.array([complex(y) for y in ref_index])
-
-        # uses setter to initialize
-        self.thickness = float(thickness)
 
     @property
-    def thickness(self) -> float:
+    def thick(self) -> float:
         """
-        float, thickness in nanometers, must be greater than zero
+        float, thickness in nanometers, can be -1 if unspecified or
+        must be greater than zero
         """
-        return self._thickness
+        return self._thick
 
-    @thickness.setter
-    def thickness(self, new_thickness:float):
-        if new_thickness <= 0:
-            raise ValueError("thickness must be greater than 0")
-        self._thickness = float(new_thickness)
+    @thick.setter
+    def thick(self, new_thick:float):
+        self._thick = float(new_thick)
 
-    def admittance(
-            self,
-            inc_medium: 'OpticalMedium',
-            theta: float
-    ) -> Dict[str, NDArray]:
+    @property
+    def ntype(self) -> int:
         """
-        Calculates optical admittance of the incident medium.
+        int, index type, one of 1, 0, or -1. 1 denotes a high index
+        material and 0 is for a low index. -1 if unspecified.
+        """
+        return self._ntype
+
+    @ntype.setter
+    def ntype(self, new_ntype:float):
+        self._ntype = float(new_ntype)
+
+
+    def absorption_coefficients(self, n_reflect: int = 4) -> NDArray:
+        """
+        Calculate the absorption coefficients for n_ref reflections.
+
+        Parameters
+        ----------
+        n_reflect: int, the number of reflections (default 4)
+
+        Returns
+        ----------
+        NDArray, absorption coefficients as a function of wavelength
+        """
+        return super().absorption_coeffs(n_reflect)
+
+    def nref_effective(self, theta: float) -> NDArray:
+        """
+        Calculates the effective refractive index through the
+        medium. Requires a non-zero thickness.
+
+        Parameters
+        -----------
+        theta: float, angle of incidence of radiation in radians
+
+        Returns
+        ----------
+        NDArray, Effective substrate refractive indices as a function
+            of wavelength
+        """
+        return super().nref_effective(theta)
+
+    def admittance(self, incident: 'OpticalMedium', theta: float) -> Dict[str, NDArray]:
+        """
+        Calculates optical admittance of the incident->medium interface.
 
         Parameters
         -------------
+        incident: OpticalMedium, incident medium of the radiation
         theta: float, angle of incidence of radiation in radians
 
         Returns
         --------------
         Dict[str, NDArray] {
-            's': s-polarized admittance of the medium-incident interface,
-            'p': p-polarized admittance of the medium-incident interface }
+            's': s-polarized admittance of the incident->medium interface,
+            'p': p-polarized admittance of the incident->medium interface }
+        """
+        return super().admittance(incident, theta)
+
+    def path_length(self, incident: 'OpticalMedium', theta: float) -> NDArray:
+        """
+        Calculates the estimated optical path length through the medium
+        given incident medium and incident angle.
+
+        Parameters
+        -------------
+        inc_medium: OpticalMedium, refractive indices of incident medium
+        theta: float, angle of incidence of radiation in radians
+
+        Returns
+        ------------
+        NDArray, path length through the medium as a function of wavelength
+
+        Raises
+        ----------
+        ValueError, if medium thickness < 0
         """
 
-        # calculate complex dialectric constants (square the values)
-        # for both the current medium and the incident medium
-        dialectrics = self.ref_index**2
-        inc_dialectrics = inc_medium.ref_index**2
+        # calculate the denominator
+        den = np.sqrt(1 - (np.abs(incident.nref)**2 * (np.sin(theta)**2) / self.effective_index(theta)**2))
 
-        # Calculate S and P admittances
-        admit_s = np.sqrt(dialectrics - inc_dialectrics * np.sin(theta)**2)
-        admit_p = dialectrics / admit_s
-
-        return {'s': admit_s, 'p': admit_p}
+        # return the path length
+        return self.thickness / den

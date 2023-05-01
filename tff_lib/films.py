@@ -18,7 +18,7 @@ class WritePropertyError(Exception):
 
 class ThinFilm(OpticalMedium):
     """
-    ThinFilm is a child class of OpticalMedium, representing an optical
+    ThinFilm is a sub-class of OpticalMedium, representing an optical
     thin-film used to in thin-film filter construction. Inherits all public
     methods, attributes, and properties of OpticalMedium, with an additional
     'material' attribute used to denote if film is a high-index or low-index

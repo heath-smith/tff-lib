@@ -25,10 +25,10 @@
 // declare the object extension type
 typedef struct {
   PyObject_HEAD
-  PyObject *wavelengths;
-  PyObject *ref_index;
-  double thickness;
-  PyObject *material;
+  PyObject *waves;   /* NDArray, wavelengths */
+  PyObject *nref;    /* NDArray, refrective indices */
+  PyObject *_thick;  /* float, thickness */
+  PyObject *_ntype;  /* int, index type -- high, low, unspecified */
 } OpticalMedium;
 
 /* First, the traversal method lets the cyclic GC know about subobjects
@@ -44,9 +44,10 @@ typedef struct {
 static int
 OpticalMedium_traverse(OpticalMedium *self, visitproc visit, void *arg)
 {
-    Py_VISIT(self->wavelengths);
-    Py_VISIT(self->ref_index);
-    Py_VISIT(self->material);
+    Py_VISIT(self->waves);
+    Py_VISIT(self->nref);
+    Py_VISIT(self->_thick);
+    Py_VISIT(self->_ntype);
     return 0;
 }
 
@@ -64,9 +65,10 @@ OpticalMedium_traverse(OpticalMedium *self, visitproc visit, void *arg)
 static int
 OpticalMedium_clear(OpticalMedium *self)
 {
-    Py_CLEAR(self->wavelengths);
-    Py_CLEAR(self->ref_index);
-    Py_CLEAR(self->material);
+    Py_CLEAR(self->waves);
+    Py_CLEAR(self->nref);
+    Py_CLEAR(self->_thick);
+    Py_CLEAR(self->_ntype);
     return 0;
 }
 
@@ -98,11 +100,14 @@ OpticalMedium_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
   // call tp_alloc slot to allocate memory
   self = (OpticalMedium *) type->tp_alloc(type, 0);
   if (self != NULL) {
-    self->wavelengths = NULL;
-    self->ref_index = NULL;
-    self->thickness = -1;
-    self->material = PyUnicode_FromString("");  // initialize empty string
-    if (self->material == NULL) {
+    self->waves = NULL;
+    self->nref = NULL;
+    self->_thick = PyLong_FromLong(-1);  // initialize to -1
+    if (self->_thick == NULL) {
+      Py_DECREF(self);
+    }
+    self->_ntype = PyLong_FromLong(-1);    // initialize to -1
+    if (self->_ntype == NULL) {
       Py_DECREF(self);
     }
   }
@@ -113,79 +118,98 @@ OpticalMedium_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
  */
 static int
 OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
-  static char *kwlist[] = {
-    "wavelengths", "ref_index", "thickness", "material", NULL };
-  PyObject *wavelengths = NULL, *ref_index = NULL, *material = NULL, *tmp;
-  PyObject *wv_arr = NULL, *ref_arr = NULL;
+  static char *arglist[] = {
+    "waves", "nref", "thick", "ntype", NULL };
+  PyObject *waves = NULL, *nref = NULL, *thick = NULL, *ntype = NULL;
+  PyObject *tmp = NULL, *temp_wv = NULL, *temp_nref = NULL;
   int DTYPE, iscomplex;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOdO", kwlist,
-                                    &wavelengths, &ref_index,
-                                    &self->thickness, &material))
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|OO", arglist,
+                                    &waves, &nref, &thick, &ntype))
     return -1;
 
+  if (waves) {
 
-  if (wavelengths) {
-
-    DTYPE = PyArray_ObjectType(wavelengths, NPY_FLOAT);
+    DTYPE = PyArray_ObjectType(waves, NPY_FLOAT);
     iscomplex = PyTypeNum_ISCOMPLEX(DTYPE);
-    wv_arr = PyArray_FROM_OTF(wavelengths, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+    temp_wv = PyArray_FROM_OTF(waves, DTYPE, NPY_ARRAY_INOUT_ARRAY);
 
-    if (wv_arr == NULL) {
-      Py_CLEAR(wv_arr);
+    if (temp_wv == NULL) {
+      Py_CLEAR(temp_wv);
       return -1;
     }
 
-    if (PyArray_NDIM((PyArrayObject *)wv_arr) != 1) {
-      Py_CLEAR(wv_arr);
-      PyErr_SetString(PyExc_ValueError, "wavelengths expects 1-dimensional array");
+    if (PyArray_NDIM((PyArrayObject *)temp_wv) != 1) {
+      Py_CLEAR(temp_wv);
+      PyErr_SetString(PyExc_ValueError, "waves expects 1-dimensional array");
       return -1;
     }
 
   }
 
-  if (ref_index) {
+  if (nref) {
 
-    DTYPE = PyArray_ObjectType(ref_index, NPY_FLOAT);
+    DTYPE = PyArray_ObjectType(nref, NPY_FLOAT);
     iscomplex = PyTypeNum_ISCOMPLEX(DTYPE);
-    ref_arr = PyArray_FROM_OTF(ref_index, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+    temp_nref = PyArray_FROM_OTF(nref, DTYPE, NPY_ARRAY_INOUT_ARRAY);
 
-    if (ref_arr == NULL) {
-      Py_CLEAR(ref_arr);
+    if (temp_nref == NULL) {
+      Py_CLEAR(temp_nref);
       return -1;
     }
 
-    if (PyArray_NDIM((PyArrayObject *)ref_arr) != 1) {
-      Py_CLEAR(ref_arr);
-      PyErr_SetString(PyExc_ValueError, "ref_index expects 1-dimensional array");
+    if (PyArray_NDIM((PyArrayObject *)temp_nref) != 1) {
+      Py_CLEAR(temp_nref);
+      PyErr_SetString(PyExc_ValueError, "nref expects 1-dimensional array");
       return -1;
     }
 
   }
 
   // verify both array's have same number of elements
-  if (PyArray_SIZE((PyArrayObject *)wv_arr) != PyArray_SIZE((PyArrayObject *)ref_arr)) {
-    Py_CLEAR(wv_arr);
-    Py_CLEAR(ref_arr);
+  if (PyArray_SIZE((PyArrayObject *)temp_wv) != PyArray_SIZE((PyArrayObject *)temp_nref)) {
+    Py_CLEAR(temp_wv);
+    Py_CLEAR(temp_nref);
     PyErr_SetString(
-      PyExc_ValueError, "wavelengths and ref_index must have the same number of elements");
+      PyExc_ValueError, "waves and nref must have the same number of elements");
     return -1;
   }
 
-  self->wavelengths = Py_BuildValue("N", wv_arr);
-  self->ref_index = Py_BuildValue("N", ref_arr);
+  self->waves = Py_BuildValue("N", temp_wv);
+  self->nref = Py_BuildValue("N", temp_nref);
 
-  Py_INCREF(self->wavelengths);
-  Py_INCREF(self->ref_index);
+  Py_INCREF(self->waves);
+  Py_INCREF(self->nref);
 
-  Py_XDECREF(wv_arr);
-  Py_XDECREF(ref_arr);
+  Py_XDECREF(temp_wv);
+  Py_XDECREF(temp_nref);
 
+  if (thick) {
 
-  if (material) {
-    tmp = self->material;
-    Py_INCREF(material);
-    self->material = material;
+    if (PyFloat_AsDouble(thick) < 0) {
+      if (PyFloat_AsDouble(thick) != -1) {
+        PyErr_SetString(PyExc_ValueError, "thick must be > 0 or -1 for infinite medium");
+        return -1;
+      }
+    }
+
+    tmp = self->_thick;
+    Py_INCREF(thick);
+    self->_thick = thick;
+    Py_XDECREF(tmp);
+  }
+
+  if (ntype) {
+
+    if (
+      PyLong_AsLong(ntype) != 0 && PyLong_AsLong(ntype) != -1 && PyLong_AsLong(ntype) != 1) {
+        PyErr_SetString(PyExc_ValueError, "ntype must be 1, 0, or -1");
+        return -1;
+    }
+
+    tmp = self->_ntype;
+    Py_INCREF(ntype);
+    self->_ntype = ntype;
     Py_XDECREF(tmp);
   }
 
@@ -193,42 +217,76 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
 }
 
 static PyMemberDef OpticalMedium_members[] = {
-  {"wavelengths", T_OBJECT_EX, offsetof(OpticalMedium, wavelengths), 0, "wavelengths"},
-  {"ref_index", T_OBJECT_EX, offsetof(OpticalMedium, ref_index), 0, "ref_index"},
-  {"thickness", T_DOUBLE, offsetof(OpticalMedium, thickness), 0, "thickness"},
-  {"material", T_OBJECT_EX, offsetof(OpticalMedium, material), 0, "material"},
+  {"waves", T_OBJECT_EX, offsetof(OpticalMedium, waves), 0, "waves"},
+  {"nref", T_OBJECT_EX, offsetof(OpticalMedium, nref), 0, "nref"},
   {NULL}  /* Sentinel */
 };
 
 /* Provide customized getters/setters
  * for finer control over attributes
  */
-static int
+static PyObject *
 OpticalMedium_getthickness(OpticalMedium *self, void *closure) {
-  return self->thickness;
+  Py_INCREF(self->_thick);
+  return self->_thick;
 }
 
 static int
 OpticalMedium_setthickness(OpticalMedium *self, PyObject *value, void *closure) {
-  double tmp = PyFloat_AsDouble(value);
+  PyObject *tmp;
 
-  if (tmp < 0) {
-    if (tmp != -1) {
-      PyErr_SetString(PyExc_ValueError, "thickness must be > 0 or -1 for inf.");
+  if (PyFloat_AsDouble(value) < 0) {
+    if (PyFloat_AsDouble(value) != -1) {
+      PyErr_SetString(PyExc_ValueError, "thickness must be > 0 or -1 for infinite medium");
       return -1;
     }
   }
 
-  self->thickness = tmp;
+  tmp = self->_thick;
+  Py_INCREF(value);
+  self->_thick = value;
+  Py_DECREF(tmp);
+
+  return 0;
+}
+
+static PyObject *
+OpticalMedium_getntype(OpticalMedium *self, void *closure) {
+  Py_INCREF(self->_ntype);
+  return self->_ntype;
+}
+
+static int
+OpticalMedium_setntype(OpticalMedium *self, PyObject *value, void *closure) {
+  PyObject *tmp;
+
+    if (
+      PyFloat_AsDouble(value) != 0 && PyFloat_AsDouble(value) != -1 && PyFloat_AsDouble(value) != 1) {
+        PyErr_SetString(PyExc_ValueError, "ntype must be 1, 0, or -1");
+        return -1;
+    }
+
+  tmp = self->_ntype;
+  Py_INCREF(value);
+  self->_ntype = value;
+  Py_DECREF(tmp);
+
   return 0;
 }
 
 static PyGetSetDef OpticalMedium_getsetters[] = {
   {
-    "thickness",
+    "_thick",
     (getter) OpticalMedium_getthickness,
     (setter) OpticalMedium_setthickness,
-    "thickness in nanometers",
+    "thickness in nanometers, -1 or > 0",
+    NULL
+  },
+  {
+    "_ntype",
+    (getter) OpticalMedium_getntype,
+    (setter) OpticalMedium_setntype,
+    "index type, 1, 0, or -1",
     NULL
   },
   {NULL}  /* Sentinel */
@@ -246,8 +304,8 @@ OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   PyObject *ret = PyDict_New();
 
   PyArrayIterObject *iter1, *iter2;
-  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->ref_index);
-  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->ref_index);
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
 
   if (iter1 == NULL || iter2 == NULL) {
     return Py_None;
@@ -268,8 +326,8 @@ OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   }
 
   PyObject *arr_s, *arr_p;
-  int ndims = PyArray_NDIM((PyArrayObject *)self->ref_index);
-  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->ref_index);
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
   arr_s = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_s);
   arr_p = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_p);
 
@@ -281,26 +339,114 @@ OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   return ret;
 }
 
-// std::map<char, std::complex<double> *> OpticalMedium::admittance(
-//                                           const OpticalMedium &inc_medium,
-//                                           double theta) const {
-//   // create new admittance map
-//   std::map <char, std::complex<double> *> admit;
-//   admit['s'] = new std::complex<double>[n_];
-//   admit['p'] = new std::complex<double>[n_];
+static PyObject *
+OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
+  int n_reflect;
+
+  if (! PyArg_ParseTuple(args, "i", &n_reflect))
+      return Py_None;
+
+  PyArrayIterObject *iter1, *iter2;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->waves);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
+
+  if (iter1 == NULL || iter2 == NULL) {
+    return Py_None;
+  }
+
+  std::complex<double> *coeffs = new std::complex<double>[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
+    coeffs[iter1->index] = (
+      n_reflect * Py_MATH_PI * std::imag(*(std::complex<double> *)iter2->dataptr)) / *(double *)iter2->dataptr;
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+  }
+
+  PyObject *out;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  out = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)coeffs);
+
+  return out;
+}
+
+static PyObject *
+OpticalMedium_nref_effective(OpticalMedium *self, PyObject *args) {
+  double theta = 0.0;
+
+  if (! PyArg_ParseTuple(args, "d", &theta))
+      return Py_None;
+
+  PyArrayIterObject *iter;
+  iter = (PyArrayIterObject *)PyArray_IterNew(self->nref);
+
+  std::complex<double> *nref_eff = new std::complex<double>[iter->size];
+
+  while (iter->index < iter->size) {
+    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
+    double n_real = std::real(*(std::complex<double> *)iter->dataptr);
+    double n_imag = std::imag(*(std::complex<double> *)iter->dataptr);
+
+    // compute the inner-most term of the effective index
+    double in1a = pow(pow(n_imag, 2) + pow(n_real, 2), 2);
+    double in1b = 2 * n_imag - n_real;
+    double in1c = n_imag + n_real;
+    double in1d = pow(sin(theta), 2) + pow(sin(theta), 4);
+    double inner1 = in1a + in1b * in1c * in1d;
+
+    // computer the next inner-most term
+    double in2a = -pow(n_imag, 2);
+    double in2b = pow(n_real, 2);
+    double in2c = pow(sin(theta), 2);
+    double in2d = sqrt(inner1);
+    double inner2 = 0.5 * (in2a + in2b + in2c + in2d);
+
+    // compute the outer-most term (this is the result)
+    nref_eff[iter->index] = sqrt(inner2);
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter);
+  }
+
+  PyObject *out;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  out = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)nref_eff);
+
+  return out;
+
+}
+
+// static PyObject *
+// OpticalMedium_path_length(OpticalMedium *self, PyObject *args) {
+//   OpticalMedium *inc = NULL;  // the incident medium object
+//   double theta = 0.0;
 //
-//   for (size_t i = 0; i < n_; i++) {
-//     admit['s'][i] = sqrt(
-//       pow(ref_index[i], 2) - pow(inc_medium.ref_index[i], 2) * sin(theta));
-//     admit['p'][i] = pow(ref_index[i], 2) / admit['s'][i];
-//   }
-//   return admit;
+//   if (! PyArg_ParseTuple(args, "Od", &inc, &theta))
+//       return Py_None;
+//   PyArrayIterObject *iter1, *iter2;
+//   iter1 = (PyArrayIterObject *)PyArray_IterNew(self->waves);
+//   iter2 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
+//
 // }
 
 static PyMethodDef OpticalMedium_methods[] = {
     {"admittance", (PyCFunction) OpticalMedium_admittance, METH_VARARGS,
      "Return the admittances between self and incident medium"
     },
+    {"absorption_coeffs", (PyCFunction) OpticalMedium_absorption_coeffs, METH_VARARGS,
+     "Calculates the absorption coefficient for n_ref reflections"
+    },
+    {"nref_effective", (PyCFunction) OpticalMedium_nref_effective, METH_VARARGS,
+     "Calculates the effective refractive index through the medium"
+    },
+    //{"path_length", (PyCFunction) OpticalMedium_path_length, METH_VARARGS,
+    // "Calculates the estimated optical path length through the medium"
+    //},
     {NULL}  /* Sentinel */
 };
 
