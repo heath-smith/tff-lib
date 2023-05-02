@@ -54,6 +54,7 @@ class TestMedium(unittest.TestCase):
         # test expected outputs
         cls._admittance = cls.test_data['output']['admit_delta']
         cls._nref_effective = cls.test_data['output']['effective_index']
+        cls._path_length = cls.test_data['output']['path_length']
 
     def test__init__(self):
         """
@@ -167,6 +168,59 @@ class TestMedium(unittest.TestCase):
             self._admittance['ns_inc'], adm['s'], decimal=self._precision)
         nptest.assert_array_almost_equal(
             self._admittance['np_inc'], adm['p'], decimal=self._precision)
+
+    def test_path_length(self):
+        """
+        test path_length()
+        """
+
+        # create a medium using a substrate
+        med = OpticalMedium(self._waves, self._nref, thick=self._thick)
+
+        # create an incident medium of air with infinite thickness
+        inc = OpticalMedium(self._waves, self._incident)
+
+        p_len = med.path_length(inc, self._theta)
+
+        nptest.assert_array_almost_equal(
+            self._path_length, p_len, decimal=self._precision)
+
+    def test_path_length_negative_thick(self):
+        """
+        test path_length() with negative thickness
+        """
+
+        # create a medium with default -1 thickness
+        med = OpticalMedium(self._waves, self._nref)
+
+        # create an incident medium of air with infinite thickness
+        inc = OpticalMedium(self._waves, self._incident)
+
+        # med.thick == -1, should raise error
+        with self.assertRaises(ValueError):
+            med.path_length(inc, self._theta)
+
+    def test_admit_effective(self):
+        """
+        test admit_effective()
+        """
+
+        # create a finite medium
+        med = OpticalMedium(self._waves, self._nref, thick=self._thick)
+
+        # create infinite incident medium 'air'
+        inc = OpticalMedium(self._waves, self._incident)
+
+        # test admit_effective() method
+        adm = med.admit_effective(inc, self._theta)
+
+        # expect effective admittance to equal admittance
+        # at theta == 0
+        nptest.assert_array_almost_equal(
+            self._admittance['ns_sub'], adm['s'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._admittance['np_sub'], adm['p'], decimal=self._precision)
+
 
     @classmethod
     def tearDownClass(cls):

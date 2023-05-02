@@ -122,7 +122,7 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
     "waves", "nref", "thick", "ntype", NULL };
   PyObject *waves = NULL, *nref = NULL, *thick = NULL, *ntype = NULL;
   PyObject *tmp = NULL, *temp_wv = NULL, *temp_nref = NULL;
-  int DTYPE, iscomplex;
+  int DTYPE;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|OO", arglist,
                                     &waves, &nref, &thick, &ntype))
@@ -131,7 +131,6 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
   if (waves) {
 
     DTYPE = PyArray_ObjectType(waves, NPY_FLOAT);
-    iscomplex = PyTypeNum_ISCOMPLEX(DTYPE);
     temp_wv = PyArray_FROM_OTF(waves, DTYPE, NPY_ARRAY_INOUT_ARRAY);
 
     if (temp_wv == NULL) {
@@ -150,7 +149,6 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
   if (nref) {
 
     DTYPE = PyArray_ObjectType(nref, NPY_FLOAT);
-    iscomplex = PyTypeNum_ISCOMPLEX(DTYPE);
     temp_nref = PyArray_FROM_OTF(nref, DTYPE, NPY_ARRAY_INOUT_ARRAY);
 
     if (temp_nref == NULL) {
@@ -297,7 +295,7 @@ OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   OpticalMedium *inc = NULL;  // the incident medium object
   double theta = 0.0;
 
-  if (! PyArg_ParseTuple(args, "Od", &inc, &theta))
+  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
       return Py_None;
 
   // create a PyDict to store results
@@ -317,8 +315,8 @@ OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   while (iter1->index < iter1->size) {
     /* calculate admittances with iter1->dataptr and iter2->dataptr */
     admit_s[iter1->index] = sqrt(
-      pow(*(double *)iter1->dataptr, 2) - pow(*(double *)iter2->dataptr, 2) * sin(theta));
-    admit_p[iter1->index] = pow(*(double *)iter1->dataptr, 2) / admit_s[iter1->index];
+      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
+    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
 
     /* increment iterator */
     PyArray_ITER_NEXT(iter1);
@@ -343,7 +341,7 @@ static PyObject *
 OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
   int n_reflect;
 
-  if (! PyArg_ParseTuple(args, "i", &n_reflect))
+  if (!PyArg_ParseTuple(args, "i", &n_reflect))
       return Py_None;
 
   PyArrayIterObject *iter1, *iter2;
@@ -378,8 +376,9 @@ static PyObject *
 OpticalMedium_nref_effective(OpticalMedium *self, PyObject *args) {
   double theta = 0.0;
 
-  if (! PyArg_ParseTuple(args, "d", &theta))
-      return Py_None;
+  if (!PyArg_ParseTuple(args, "d", &theta)) {
+    return Py_None;
+  }
 
   PyArrayIterObject *iter;
   iter = (PyArrayIterObject *)PyArray_IterNew(self->nref);
@@ -421,18 +420,201 @@ OpticalMedium_nref_effective(OpticalMedium *self, PyObject *args) {
 
 }
 
-// static PyObject *
-// OpticalMedium_path_length(OpticalMedium *self, PyObject *args) {
-//   OpticalMedium *inc = NULL;  // the incident medium object
-//   double theta = 0.0;
-//
-//   if (! PyArg_ParseTuple(args, "Od", &inc, &theta))
-//       return Py_None;
-//   PyArrayIterObject *iter1, *iter2;
-//   iter1 = (PyArrayIterObject *)PyArray_IterNew(self->waves);
-//   iter2 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
-//
-// }
+static PyObject *
+OpticalMedium_path_length(OpticalMedium *self, PyObject *args) {
+
+  if (PyFloat_AsDouble(self->_thick) < 0) {
+    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
+    return NULL;
+  }
+
+  OpticalMedium *inc = NULL;  // the incident medium object
+  double theta = 0.0;
+
+  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
+      return Py_None;
+
+  // build values to pass to nref_effective
+  PyObject *arg = Py_BuildValue("(d)", theta);
+  //PyObject *keywords = PyDict_New();
+  //PyDict_SetItemString(keywords, "theta", Py_True);
+  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_effective");
+
+  // make call to nref_effective, clean up memory
+  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
+
+  /* may need to check nref_eff here */
+
+  PyArrayIterObject *iter1, *iter2;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
+
+  // create output pointer array
+  double *p_len = new double[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
+    std::complex<double> n_inc = *(std::complex<double>  *)iter1->dataptr;
+    std::complex<double>  n_eff = *(std::complex<double>  *)iter2->dataptr;
+
+    std::complex<double> denom = sqrt(1.0 - (pow(std::abs(n_inc), 2) * pow(sin(theta), 2) / pow(n_eff, 2)));
+
+    p_len[iter1->index] = PyFloat_AsDouble(self->_thick) / std::real(denom);
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+  }
+
+  PyObject *out;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  out = PyArray_SimpleNewFromData(ndims, dims, NPY_FLOAT64, (void *)p_len);
+
+  // release result from Method Call
+  Py_DECREF(nref_eff);
+  Py_DECREF(arg);
+  //Py_DECREF(keywords);
+  Py_DECREF(nref_eff_method);
+
+  return out;
+
+}
+
+
+static PyObject *
+OpticalMedium_admit_effective(OpticalMedium *self, PyObject *args) {
+
+  if (PyFloat_AsDouble(self->_thick) < 0) {
+    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
+    return NULL;
+  }
+
+  OpticalMedium *inc = NULL;  // the incident medium object
+  double theta = 0.0;
+
+  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
+      return Py_None;
+
+  // create a PyDict to store results
+  PyObject *ret = PyDict_New();
+
+  // build values to pass to nref_effective
+  PyObject *arg = Py_BuildValue("(d)", theta);
+  //PyObject *keywords = PyDict_New();
+  //PyDict_SetItemString(keywords, "theta", Py_True);
+  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_effective");
+
+  // make call to nref_effective, clean up memory
+  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
+
+  /* may need to check nref_eff here */
+
+  PyArrayIterObject *iter1, *iter2;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
+
+  if (iter1 == NULL || iter2 == NULL) {
+    return Py_None;
+  }
+
+  std::complex<double> *admit_s = new std::complex<double>[iter1->size];
+  std::complex<double> *admit_p = new std::complex<double>[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate admittances with iter1->dataptr and iter2->dataptr */
+    admit_s[iter1->index] = sqrt(
+      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
+    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+  }
+
+  PyObject *arr_s, *arr_p;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  arr_s = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_s);
+  arr_p = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_p);
+
+  // add objects to dict
+  PyDict_SetItem(ret, Py_BuildValue("s", "s"), arr_s);
+  PyDict_SetItem(ret, Py_BuildValue("s", "p"), arr_p);
+
+  Py_INCREF(ret);
+
+  // release result from Method Call
+  Py_DECREF(nref_eff);
+  Py_DECREF(arg);
+  //Py_DECREF(keywords);
+  Py_DECREF(nref_eff_method);
+
+  return ret;
+}
+
+
+static PyObject *
+OpticalMedium_fresnel_coeffs(OpticalMedium *self, PyObject *args) {
+
+  if (PyFloat_AsDouble(self->_thick) < 0) {
+    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
+    return NULL;
+  }
+
+  OpticalMedium *inc = NULL;  // the incident medium object
+  double theta = 0.0;
+
+  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
+      return Py_None;
+
+  // create a PyDict to store results
+  PyObject *ret = PyDict_New();
+
+
+  PyArrayIterObject *iter1, *iter2;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
+
+  if (iter1 == NULL || iter2 == NULL) {
+    return Py_None;
+  }
+
+  std::complex<double> *Ts = new std::complex<double>[iter1->size];
+  std::complex<double> *Tp = new std::complex<double>[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate admittances with iter1->dataptr and iter2->dataptr */
+    admit_s[iter1->index] = sqrt(
+      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
+    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+  }
+
+  PyObject *arr_Ts, *arr_Tp;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  arr_Ts = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Ts);
+  arr_Tp = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Tp);
+
+  // add objects to dict
+  PyDict_SetItem(ret, Py_BuildValue("s", "Ts"), arr_Ts);
+  PyDict_SetItem(ret, Py_BuildValue("s", "Tp"), arr_Tp);
+  PyDict_SetItem(ret, Py_BuildValue("s", "Rs"), arr_Rs);
+  PyDict_SetItem(ret, Py_BuildValue("s", "Rp"), arr_Rp);
+  PyDict_SetItem(ret, Py_BuildValue("s", "rs"), arr_rs);
+  PyDict_SetItem(ret, Py_BuildValue("s", "rp"), arr_rp);
+
+  Py_INCREF(ret);
+
+
+  return ret;
+}
+
+
 
 static PyMethodDef OpticalMedium_methods[] = {
     {"admittance", (PyCFunction) OpticalMedium_admittance, METH_VARARGS,
@@ -444,9 +626,15 @@ static PyMethodDef OpticalMedium_methods[] = {
     {"nref_effective", (PyCFunction) OpticalMedium_nref_effective, METH_VARARGS,
      "Calculates the effective refractive index through the medium"
     },
-    //{"path_length", (PyCFunction) OpticalMedium_path_length, METH_VARARGS,
-    // "Calculates the estimated optical path length through the medium"
-    //},
+    {"path_length", (PyCFunction) OpticalMedium_path_length, METH_VARARGS,
+     "Calculates the estimated optical path length through the medium"
+    },
+    {"admit_effective", (PyCFunction) OpticalMedium_admit_effective, METH_VARARGS,
+     "Return the effective admittances between medium and incident medium"
+    },
+    {"fresnel_coeffs", (PyCFunction) OpticalMedium_fresnel_coeffs, METH_VARARGS,
+     "Calculates the fresnel amplitudes & intensities of the medium"
+    },
     {NULL}  /* Sentinel */
 };
 

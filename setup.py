@@ -11,7 +11,7 @@ setup(
     ext_modules=[
         Extension(
             name='medium',
-            sources=['tff_lib/medium.cc'],
+            sources=['tff_lib/medium.cpp'],
             include_dirs=[numpy.get_include()]
         ),
     ]
