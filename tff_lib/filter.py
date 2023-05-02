@@ -141,6 +141,10 @@ class ThinFilmFilter():
         # calculate the absorption coefficients for multiple reflections
         alpha = self.substrate.absorption_coefficients(n_ref=4)
 
+        ## might be better to have a function from here down, which
+        ## takes in the results from the previous method calls
+        ## instead of calling all of these from C++
+
         # calculate filter reflection
         spec = {'Rs': (
             inc_med_ref['Rs']
