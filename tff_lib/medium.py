@@ -15,7 +15,7 @@ import medium
 
 class OpticalMedium(medium.OpticalMedium):
     """
-    Python wrapper for OpticalMedium C-extension class.
+    Python wrapper class for OpticalMedium C-extension module.
 
     Properties
     ----------
@@ -30,11 +30,14 @@ class OpticalMedium(medium.OpticalMedium):
         nref: Iterable[complex], 1-D array of complex refractive indices
 
 
-    Raises
+    Methods
     ----------
-        ValueError
-            if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
-             waves or nref not 1-D.
+    >>> absorption_coeffs(self, n_reflect: int = 4) -> NDArray
+    >>> nref_eff(self, theta: float|Iterable[float]) -> NDArray
+    >>> admittance(self, inc: OpticalMedium, theta: float|Iterable[float]) -> Dict[str, NDArray]
+    >>> admittance_eff(self, inc: OpticalMedium, theta: float|Iterable[float]) -> Dict[str, NDArray]
+    >>> path_length(self, inc: OpticalMedium, theta: float|Iterable[float]) -> NDArray
+    >>> fresnel_coeffs(self, inc: OpticalMedium, theta: float|Iterable[float]) -> Dict[str, NDArray]
     """
 
     def __init__(self, waves: Iterable[float], nref: Iterable[complex], **kwargs) -> None:
@@ -43,7 +46,7 @@ class OpticalMedium(medium.OpticalMedium):
 
         args
         ----------
-        wavelengths: Iterable[float], 1-D array of wavelengths in nanometers
+        waves: Iterable[float], 1-D array of wavelengths in nanometers
         nref: Iterable[complex], 1-D array of complex refractive indices
 
         kwargs
@@ -60,7 +63,6 @@ class OpticalMedium(medium.OpticalMedium):
              waves or nref not 1-D.
         """
         super().__init__(waves, nref, **kwargs)
-
 
     @property
     def thick(self) -> float:
@@ -86,8 +88,7 @@ class OpticalMedium(medium.OpticalMedium):
     def ntype(self, new_ntype:float):
         self._ntype = float(new_ntype)
 
-
-    def absorption_coefficients(self, n_reflect: int = 4) -> NDArray:
+    def absorption_coeffs(self, n_reflect: int = 4) -> NDArray:
         """
         Calculate the absorption coefficients for n_ref reflections.
 
@@ -101,30 +102,30 @@ class OpticalMedium(medium.OpticalMedium):
         """
         return super().absorption_coeffs(n_reflect)
 
-    def nref_effective(self, theta: float) -> NDArray:
+    def nref_eff(self, theta: float|Iterable[float]) -> NDArray:
         """
         Calculates the effective refractive index through the
         medium. Requires a non-zero thickness.
 
         Parameters
         -----------
-        theta: float, angle of incidence of radiation in radians
+        theta: float|Iterable[float], angle of incidence of radiation in radians
 
         Returns
         ----------
         NDArray, Effective substrate refractive indices as a function
             of wavelength
         """
-        return super().nref_effective(theta)
+        return super().nref_eff(theta)
 
-    def admittance(self, inc: 'OpticalMedium', theta: float) -> Dict[str, NDArray]:
+    def admittance(self, inc: 'OpticalMedium', theta: float|Iterable[float]) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of the incident->medium interface.
 
         Parameters
         -------------
         inc: OpticalMedium, incident medium of the radiation
-        theta: float, angle of incidence of radiation in radians
+        theta: float|Iterable[float], angle of incidence of radiation in radians
 
         Returns
         --------------
@@ -134,7 +135,7 @@ class OpticalMedium(medium.OpticalMedium):
         """
         return super().admittance(inc, theta)
 
-    def admit_effective(self, inc: 'OpticalMedium', theta: float) -> Dict[str, NDArray]:
+    def admittance_eff(self, inc: 'OpticalMedium', theta: float|Iterable[float]) -> Dict[str, NDArray]:
         """
         Calculates optical admittance of substrate and incident
         medium interface using the effective refractive index
@@ -143,7 +144,7 @@ class OpticalMedium(medium.OpticalMedium):
         args
         -----------
         inc: OpticalMedium, complex refractive index of incident medium
-        theta: float, angle of incidence of radiation in radians
+        theta: float|Iterable[float], angle of incidence of radiation in radians
 
         Returns
         -----------
@@ -153,21 +154,20 @@ class OpticalMedium(medium.OpticalMedium):
 
         Raises
         ----------
-        ValueError, if inc_medium shape does not match
-            substrate.ref_index shape or  theta <= 0.
+        ValueError, if inc shape does not match
+            substrate.nref shape or  theta <= 0.
         """
-        return super().admit_effective(inc, theta)
+        return super().admittance_eff(inc, theta)
 
-
-    def path_length(self, inc: 'OpticalMedium', theta: float) -> NDArray:
+    def path_length(self, inc: 'OpticalMedium', theta: float|Iterable[float]) -> NDArray:
         """
         Calculates the estimated optical path length through the medium
         given incident medium and incident angle.
 
         Parameters
         -------------
-        inc_medium: OpticalMedium, refractive indices of incident medium
-        theta: float, angle of incidence of radiation in radians
+        inc: OpticalMedium, refractive indices of incident medium
+        theta: float|Iterable[float], angle of incidence of radiation in radians
 
         Returns
         ------------
@@ -180,19 +180,14 @@ class OpticalMedium(medium.OpticalMedium):
 
         return super().path_length(inc, theta)
 
-
-    def fresnel_coefficients(
-            self,
-            inc_medium: OpticalMedium,
-            theta: float
-    ) -> Dict[str, NDArray]:
+    def fresnel_coeffs(self, inc: 'OpticalMedium', theta: float|Iterable[float]) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of the medium.
 
         Parameters
         -----------
-        inc_medium: OpticalMedium, complex refractive index on incident medium
-        theta: float, angle of incidence of radiation in radians
+        inc: OpticalMedium, complex refractive index on incident medium
+        theta: float|Iterable[float], angle of incidence of radiation in radians
 
         Returns
         -----------
@@ -202,42 +197,8 @@ class OpticalMedium(medium.OpticalMedium):
             'Tp' : p-polarized Fresnel Transmission Intensity,
             'Rs' : s-polarized Fresnel Reflection Intensity,
             'Rp' : p-polarized Fresnel Reflection Intensity,
-            'rs' : s-polarized Fresnel Reflection Amplitude,
-            'rp' : p-polarized Fresnel Reflection Amplitude
+            'Fs' : s-polarized Fresnel Reflection Amplitude,
+            'Fp' : p-polarized Fresnel Reflection Amplitude
         }
         """
-
-        if not self.ref_index.shape == inc_medium.ref_index.shape:
-            raise ValueError(
-                f'shaped not equal: {self.ref_index.shape} != {inc_medium.ref_index.shape}.')
-
-        # Calculation of the Fresnel Amplitude Coefficients
-        rs_num = (inc_medium.ref_index * np.cos(theta)
-                  - np.sqrt(self.ref_index**2- inc_medium.ref_index**2 * np.sin(theta)**2))
-        rs_den = (inc_medium.ref_index * np.cos(theta)
-                  + np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
-        r_s = rs_num / rs_den
-
-        rp_num = (self.ref_index**2
-                  * np.cos(theta)
-                  - inc_medium.ref_index
-                  * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
-        rp_den = (self.ref_index**2
-                  * np.cos(theta)
-                  + inc_medium.ref_index
-                  * np.sqrt(self.ref_index**2 - inc_medium.ref_index**2 * np.sin(theta)**2))
-        r_p = -rp_num / rp_den
-
-        # Calculation of Fresnel Intensities for bare substrate interface
-        big_r_s = np.abs(r_s)**2
-        big_r_p = np.abs(r_p)**2
-
-        return {
-            'Ts': (1 - big_r_s),     # S-polarized transmission
-            'Tp': (1 - big_r_p),     # P-polarized transmission
-            'Rs': big_r_s,           # S-polarized reflection
-            'Rp': big_r_p,           # P-polarized reflection
-            'rs': r_s,               # S-polarized fresnel Amplitude Coefficient
-            'rp': r_p                # P-polarized fresnel Amplitude Coefficient
-        }
-
+        return super().fresnel_coeffs(inc, theta)

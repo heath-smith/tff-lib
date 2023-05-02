@@ -46,12 +46,14 @@ class TestRandomFilmStack(unittest.TestCase):
         cls._precision = 12
 
         # setup input data from test_expected.json
-        cls._material = 'H'
+        cls._material = 1  # 1 = high index
         cls._thickness = 0.5
         cls._wavelengths = cls.test_data['input']['wv']
         cls._high_mat = [complex(x) for x in cls.test_data['input']['high_mat']]
         cls._low_mat = [complex(x) for x in cls.test_data['input']['low_mat']]
         cls._layers = cls.test_data['input']['layers']
+
+        # expected output data
         cls._char_matrix = {
             k: [complex(x) for x in v]
             for k,v in cls.test_data['output']['char_matrix'].items()
@@ -62,9 +64,9 @@ class TestRandomFilmStack(unittest.TestCase):
         cls._stack = [
             ThinFilm(
                 cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
-                lyr[1],
-                lyr[0]
+                cls._high_mat if lyr[0] == 1 else cls._low_mat,
+                thick=lyr[1],
+                ntype=lyr[0]
             )
             for lyr in cls._layers
         ]
@@ -74,7 +76,7 @@ class TestRandomFilmStack(unittest.TestCase):
 
         # test matrix
         cls._matrix = [
-            cls._high_mat if l[0] == 'H' else cls._low_mat
+            cls._high_mat if l[0] == 1 else cls._low_mat
             for l in cls._layers
         ]
 

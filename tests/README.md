@@ -8,7 +8,7 @@ The data file is structured in the following way:
 {
     "input": {
         "sub_thick": float,
-        "layers": Iterable[Tuple(str, float)],
+        "layers": Iterable[Tuple(int, float)],
         "wv": Iterable[float],
         "substrate": Iterable[float],
         "high_mat": Iterable[float],
@@ -37,20 +37,29 @@ The data file is structured in the following way:
             "np_film": Iterable[float],
             "delta": Iterable[float]
         },
-        "filspec": Dict[str, Iterable[float]],
+        "filspec": {
+            "T": Iterable[float],
+            "Ts": Iterable[float],
+            "Tp": Iterable[float],
+            "R": Iterable[float],
+            "Rs": Iterable[float],
+            "Rp": Iterable[float]
+        },
         "fresnel_bare": {
             "Ts": Iterable[float],
             "Tp": Iterable[float],
             "Rs": Iterable[float],
             "Rp": Iterable[float],
-            "rs": Iterable[float],
-            "rp": Iterable[float]
+            "Fs": Iterable[float],
+            "Fp": Iterable[float]
         },
         "fresnel_film": {
             "Ts": Iterable[float],
             "Tp": Iterable[float],
             "Rs": Iterable[float],
             "Rp": Iterable[float],
+            "ts": Iterable[float],
+            "tp": Iterable[float],
             "rs": Iterable[float],
             "rp": Iterable[float]
         }

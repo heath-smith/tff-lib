@@ -18,110 +18,119 @@ class WritePropertyError(Exception):
 
 class ThinFilm(OpticalMedium):
     """
-    ThinFilm is a sub-class of OpticalMedium, representing an optical
+    ThinFilm is a sub-class of medium.OpticalMedium, representing an optical
     thin-film used to in thin-film filter construction. Inherits all public
-    methods, attributes, and properties of OpticalMedium, with an additional
-    'material' attribute used to denote if film is a high-index or low-index
-    optical material.
+    methods, attributes, and properties of OpticalMedium, with additional
+    methods to perform common operations on optical thin-films.
 
-    Attributes
+    Methods
     ----------
-        material: str, 'H' or 'L'
+    >>> __add__(self, film: ThinFilm) -> ThinFilm
+    >>> __sub__(self, film: ThinFilm) -> ThinFilm
+    >>> split_film(self, ratio: float = 0.5) -> ThinFilm
 
     See Also
     ----------
-    >>> tff_lib.OpticalMedium(
-            wavelengths: Iterable[float],
-            ref_index: Iterable[complex],
-            thickness: float
-        ) -> None
+    >>> class OpticalMedium(
+            waves: Iterable[float],
+            nref: Iterable[complex],
+            **kwargs: Any
+        )
     """
 
-    def __init__(
-            self,
-            wavelengths: Iterable[float],
-            ref_index: Iterable[complex],
-            thickness: float,
-            material: str
-    ) -> None:
+    def __init__(self, waves: Iterable[float], nref: Iterable[complex], **kwargs) -> None:
         """
-        Initialize class attributes.
+        Initializes the ThinFilm class.
 
-        Parameters
+        args
         ----------
-        wavelengths: Iterable[float], 1-D wavelength array for material
-        ref_index: Iterable[complex], 1-D refractive indices as f(x) of wavelength
-        thickness: float, layer thickness in nanometers, must be greater than zero
-        material: str, 'H' or 'L' (case-insensitive)
+        waves: Iterable[float], 1-D array of wavelengths in nanometers
+        nref: Iterable[complex], 1-D array of complex refractive indices
+
+        kwargs
+        ----------
+        thick: float, medium thickness in nanometers. -1 if unspecified, or must
+            be greater than zero. (default -1)
+        ntype: int, one of -1, 0, or 1. Use 1 for a high index material,
+            0 for a low index material, or -1 if not specified. (default -1)
 
         Raises
         ----------
-        ValueError, if material not in ('H', 'L')
+        ValueError
+            if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
+             waves or nref not 1-D.
+
+        See Also
+        ----------
+        >>> class OpticalMedium(
+                waves: Iterable[float],
+                nref: Iterable[complex],
+                **kwargs: Any
+            )
         """
+        super().__init__(waves, nref, **kwargs)
 
-        # validate inputs
-        if str(material).upper() not in ('H', 'L'):
-            raise ValueError(f"material must be one of 'H' or 'L'. received {material}")
-
-        # set properties and attributes
-        self.thickness = float(thickness)
-        self.material = str(material).upper()
-
-        # call parent __init__
-        super().__init__(wavelengths, ref_index, thickness)
-
-    def __add__(self, film:'ThinFilm'):
+    def __add__(self, film: 'ThinFilm') -> 'ThinFilm':
         """
         Adds thickness values of two thin films. Must have matching
         wavelengths, refractive indices, and material attributes.
         """
 
-        if not all(self.wavelengths == film.wavelengths):
+        if not all(self.waves == film.waves):
             raise ValueError("Wavelength values must be equivalent to add thin films.")
-        if not all(self.ref_index == film.ref_index):
+        if not all(self.nref == film.nref):
             raise ValueError("Refractive indices must be equivalent to add thin films.")
-        if not self.material == film.material:
+        if not self.ntype == film.ntype:
             raise ValueError("'material' values must be equivalent to add thin films.")
 
-        self.thickness = self.thickness + film.thickness    # update self.thickness
+        self.thick = self.thick + film.thick    # update self.thick
 
-        return type(self)(self.wavelengths, self.ref_index, self.thickness, self.material)
+        return type(self)(self.waves, self.nref, thick=self.thick, ntype=self.ntype)
 
-    def __sub__(self, film:'ThinFilm'):
+    def __sub__(self, film: 'ThinFilm') -> 'ThinFilm':
         """
         Subtracts thickness values of two thin films with matching
         attributes. Returns absolute difference between thickness
         values.
         """
 
-        if not all(self.wavelengths == film.wavelengths):
+        if not all(self.waves == film.waves):
             raise ValueError("Wavelength values must be equivalent to add thin films.")
-        if not all(self.ref_index == film.ref_index):
+        if not all(self.nref == film.nref):
             raise ValueError("Refractive indices must be equivalent to add thin films.")
-        if not self.material == film.material:
+        if not self.ntype == film.ntype:
             raise ValueError("'material' values must be equivalent to add thin films.")
 
-        self.thickness = abs(self.thickness - film.thickness)    # update self.thickness
+        self.thick = abs(self.thick - film.thick)    # update self.thick
 
-        return type(self)(self.wavelengths, self.ref_index, self.thickness, self.material)
+        return type(self)(self.waves, self.nref, thick=self.thick, ntype=self.ntype)
 
-    def split_film(self):
+    def split_film(self, ratio: float = 0.5) -> 'ThinFilm':
         """
-        Split the thin film layer into two layers with height
-        1/2 of the calling instance. Reduces calling instance
-        thickness to 1/2 its original value.
+        Split the thin film layer into two layers with heights set
+        by the ratio. Changes calling instance to the the thickness
+        set by multiplying the current thickness * ratio.
+
+        args
+        ----------
+        ratio: float, ratio used for partitioning thickness, must be between (0, 1)
 
         Returns
         ----------
-        ThinFilm() object with thickness value half of calling instance
-        thickness attribute.
+        ThinFilm() object with thickness specified by thickness * (1 - ratio)
+
+        Raises
+        ----------
+        ValueError, if ratio not between 0 and 1
         """
 
-        new_thickness = self.thickness * 0.5
-        self.thickness = new_thickness
+        if not 0 < ratio < 1:
+            raise ValueError("ratio must be between 0 and 1")
+        out_thick = self.thick * (1 - ratio)
+        self.thick = self.thick * ratio
 
         return ThinFilm(
-            self.wavelengths, self.ref_index, new_thickness, self.material)
+            self.waves, self.nref, thick=out_thick, ntype=self.ntype)
 
 
 class FilmStack():
@@ -207,7 +216,7 @@ class FilmStack():
         Property/Managed Attribute - float, total thickness of the
         stack in nanometers. (Read Only)
         """
-        return np.sum([lyr.thickness for lyr in self._stack])
+        return np.sum([lyr.thick for lyr in self._stack])
 
     @total_thick.setter
     def total_thick(self, val):
@@ -230,14 +239,14 @@ class FilmStack():
         """
         Property - Iterable[float], 1-D layer thickness values.
         """
-        return [lyr.thickness for lyr in self._stack]
+        return [lyr.thick for lyr in self._stack]
 
     @layers.setter
     def layers(self, lyrs:Iterable[float]):
         if not len(self._stack) == len(lyrs):
             raise ValueError("lyrs must be same length as stack")
         for i, film in enumerate(self._stack):
-            film.thickness = lyrs[i]
+            film.thick = lyrs[i]
 
     @property
     def matrix(self) -> NDArray:
@@ -245,10 +254,10 @@ class FilmStack():
         Property - numpy.NDArray, a matrix of each film's refractive indices.
         """
         matrix = np.zeros(
-            (len(self._stack), len(self._stack[0].ref_index))).astype(np.complex128)
+            (len(self._stack), len(self._stack[0].nref))).astype(np.complex128)
 
         for i, lyr in enumerate(self._stack):
-            matrix[i, :] = lyr.ref_index
+            matrix[i, :] = lyr.nref
 
         return matrix
 
@@ -271,8 +280,8 @@ class FilmStack():
             raise ValueError("film stack must contain at least 1 layer")
 
         # validate the wavelengths of each film
-        for i, film in enumerate(films):
-            if not all(film.wavelengths == films[0].wavelengths):
+        for film in films:
+            if not all(film.waves == films[0].waves):
                 raise ValueError("All films must have same wavelength values.")
 
         # because films is mutable, python will re-use the 'films' object.
@@ -287,17 +296,18 @@ class FilmStack():
         Updates num_layers and total_thick attributes.
         """
         ## ---> This one actually needs some more thought because layers
-        ## must alternate between 'H' and 'L' material.. so layers cannot
+        ## must alternate between 1 (High) and 0 (Low) material.. so layers cannot
         ## just be inserted freely...
 
         ## self._stack.insert(index, layer)
+        raise NotImplementedError
 
     def append_layer(self, layer: ThinFilm) -> None:
         """
         Appends a new thin film layer to end of stack.
         Updates num_layers and total_thick attributes.
         """
-        if self._stack[-1].material == layer.material:
+        if self._stack[-1].ntype == layer.ntype:
             raise ValueError("film stacks must have alternating materials")
 
         self._stack.append(layer)
@@ -330,13 +340,13 @@ class FilmStack():
         """
         return self._stack[index]
 
-    def admittance(self, inc_medium: OpticalMedium, theta: float) -> Dict[str, NDArray]:
+    def admittance(self, inc: OpticalMedium, theta: float) -> Dict[str, NDArray]:
         """
         Calculate admittances of the film stack.
 
         Parameters
         -------------
-        inc_medium: OpticalMedium, refractive indices of incident medium
+        inc: OpticalMedium, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -352,7 +362,7 @@ class FilmStack():
         """
 
         # calculate complex dialectric constants
-        dialec_med = inc_medium.ref_index**2
+        dialec_med = inc.nref**2
         dialec_films = self.matrix**2
 
         # allocate memory to store results
@@ -365,8 +375,8 @@ class FilmStack():
             admit_s[i, :] = np.sqrt(dialec_films[i, :] - dialec_med * np.sin(theta)**2)
             admit_p[i, :] = dialec_films[i, :] / admit_s[i, :]
             delta[i, :] = (
-                2 * np.pi * lyr.thickness * np.sqrt(
-                dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / lyr.wavelengths
+                2 * np.pi * lyr.thick * np.sqrt(
+                dialec_films[i, :] - dialec_med * np.sin(theta)**2)) / lyr.waves
 
         # Flip layer-based arrays ns_film, np_film, delta
         # since the last layer is the top layer
@@ -376,13 +386,13 @@ class FilmStack():
 
         return {'s': admit_s, 'p': admit_p, 'delta': delta}
 
-    def char_matrix(self, inc_medium: OpticalMedium, theta: float) -> Dict[str, NDArray]:
+    def char_matrix(self, inc: OpticalMedium, theta: float) -> Dict[str, NDArray]:
         """
         Calculates the characteristic matrix for a thin film stack.
 
         Parameters
         -----------
-        inc_medium: OpticalMedium, refractive indices of incident medium
+        inc: OpticalMedium, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
@@ -398,7 +408,7 @@ class FilmStack():
             'P22': matrix entry }
         """
 
-        admit = self.admittance(inc_medium, theta)
+        admit = self.admittance(inc, theta)
 
         # Calculation of the characteristic matrix elements
         # shape of 'delta' is (N-layers X len(wavelength range))

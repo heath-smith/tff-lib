@@ -39,25 +39,25 @@ class TestThinFilm(unittest.TestCase):
             cls.test_data = json.load(dat)
 
         # setup input data from test_expected.json
-        cls._material = 'H'
-        cls._thickness = 0.5
-        cls._wavelengths = cls.test_data['input']['wv']
-        cls._ref_index = cls.test_data['input']['high_mat']
+        cls._ntype = 1  # 1 = high index
+        cls._thick = 0.5
+        cls._waves = cls.test_data['input']['wv']
+        cls._nref = cls.test_data['input']['high_mat']
 
     def test_thin_film_init(self):
         """
         test __init__()
         """
 
-        test_tf = ThinFilm(self._wavelengths,
-                           self._ref_index,
-                           self._thickness,
-                           self._material)
+        tf = ThinFilm(self._waves,
+                      self._nref,
+                      thick=self._thick,
+                      ntype=self._ntype)
 
-        # assert wavelength and ref_index have equal length
-        self.assertEqual(len(test_tf.wavelengths), len(test_tf.ref_index))
+        # assert wavelength and nref have equal length
+        self.assertEqual(len(tf.waves), len(tf.nref))
         # assert thickness value is valid
-        self.assertEqual(test_tf.thickness, self._thickness)
+        self.assertEqual(tf.thick, self._thick)
 
     def test_thin_film_invalid_inputs(self):
         """
@@ -66,61 +66,61 @@ class TestThinFilm(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             # test with negative thickness value
-            ThinFilm(self._wavelengths,
-                     self._ref_index,
-                     -1,
-                     self._material)
+            ThinFilm(self._waves,
+                     self._nref,
+                     thick=-10,
+                     ntype=self._ntype)
 
         with self.assertRaises(ValueError):
-            # take a slice of wavelengths
-            ThinFilm(self._wavelengths[:-5],
-                     self._ref_index,
-                     self._thickness,
-                     self._material)
+            # take a slice of waves
+            ThinFilm(self._waves[:-5],
+                     self._nref,
+                     thick=self._thick,
+                     ntype=self._ntype)
 
         with self.assertRaises(ValueError):
             # use invalid material
-            ThinFilm(self._wavelengths,
-                     self._ref_index,
-                     self._thickness,
-                     'wrong material string')
+            ThinFilm(self._waves,
+                     self._nref,
+                     thick=self._thick,
+                     ntype=-5)
 
     def test_thin_film_add_subtract(self):
         """
         test operators +/-
         """
 
-        tf1 = ThinFilm(self._wavelengths,
-                       self._ref_index,
-                       self._thickness,
-                       self._material)
+        tf1 = ThinFilm(self._waves,
+                       self._nref,
+                       thick=self._thick,
+                       ntype=self._ntype)
 
 
-        tf2 = ThinFilm(self._wavelengths,
-                       self._ref_index,
-                       1.0,
-                       self._material)
+        tf2 = ThinFilm(self._waves,
+                       self._nref,
+                       thick=1.0,
+                       ntype=self._ntype)
 
         tf3 = tf1 + tf2
         tf4 = tf2 - tf1
 
-        self.assertEqual(tf3.thickness, 1.5)
-        self.assertEqual(tf4.thickness, 0.5)
+        self.assertEqual(tf3.thick, 1.5)
+        self.assertEqual(tf4.thick, 0.5)
 
     def test_thin_film_split_layer(self):
         """
         test split_layer()
         """
 
-        tf1 = ThinFilm(self._wavelengths,
-                       self._ref_index,
-                       self._thickness,
-                       self._material)
+        tf1 = ThinFilm(self._waves,
+                       self._nref,
+                       thick=self._thick,
+                       ntype=self._ntype)
 
         tf2 = tf1.split_film()
 
-        self.assertEqual(tf1.thickness, self._thickness * 0.5)
-        self.assertEqual(tf2.thickness, self._thickness * 0.5)
+        self.assertEqual(tf1.thick, self._thick * 0.5)
+        self.assertEqual(tf2.thick, self._thick * 0.5)
 
     @classmethod
     def tearDownClass(cls):

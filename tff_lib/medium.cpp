@@ -20,7 +20,9 @@
 #include <iostream>
 #include <complex>
 
-
+// this is here to track changes to the API
+static const char* PICKLE_VERSION_KEY = "_pickle_version";
+static int PICKLE_VERSION = 1;
 
 // declare the object extension type
 typedef struct {
@@ -214,6 +216,111 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
   return 0;
 }
 
+/* __getstate__ pickles the object. __getstate__ is expected to
+ * return a dictionary of the internal state of the Custom object.
+ * Note that a Custom object has two Python objects (first and last)
+ * and a C integer (number) that need to be converted to a Python object.
+ */
+static PyObject *
+OpticalMedium_getstate(OpticalMedium *self, PyObject *Py_UNUSED(ignored)) {
+  PyObject *ret = Py_BuildValue("{sOsOsOsOsi}",
+                                "waves", self->waves,
+                                "nref", self->nref,
+                                "_thick", self->_thick,
+                                "_ntype", self->_ntype,
+                                PICKLE_VERSION_KEY, PICKLE_VERSION);
+  return ret;
+}
+
+/* The implementation of __setstate__ un-pickles the object. This is a
+ * little more complicated as there is quite a lot of error checking going
+ * on. We are being passed an arbitrary Python object and need to check:
+ *
+ *   -It is a Python dictionary.
+ *
+ *   -It has a version key and the version value is one that we can deal with.
+ *
+ *   -It has the required keys and values to populate our Custom object.
+ *
+ * Note that our __new__ method (Custom_new()) has already been called on self.
+ * Before setting any member value we need to de-allocate the existing value
+ * set by Custom_new() otherwise we will have a memory leak.
+ */
+static PyObject *
+OpticalMedium_setstate(OpticalMedium *self, PyObject *state) {
+  /* Error checking */
+  if (!PyDict_CheckExact(state)) {
+    PyErr_SetString(PyExc_ValueError, "Pickled object is not a dict.");
+    return NULL;
+  }
+
+  /* Check version
+   * Borrowed reference but no need to increment as we
+   * create a C long * from it.
+   */
+  PyObject *temp = PyDict_GetItemString(state, PICKLE_VERSION_KEY);
+  if (temp == NULL) {
+    /* PyDict_GetItemString does not set any error state so we have to. */
+    PyErr_Format(PyExc_KeyError,  "No \"%s\" in pickled dict.", PICKLE_VERSION_KEY);
+    return NULL;
+  }
+
+  int pickle_version = (int) PyLong_AsLong(temp);
+  if (pickle_version != PICKLE_VERSION) {
+    PyErr_Format(PyExc_ValueError,
+                 "Pickle version mismatch. Got version %d but expected version %d.",
+                 pickle_version, PICKLE_VERSION);
+    return NULL;
+  }
+
+  /* Set waves member */
+  /* NOTE: Custom_new() will have been invoked so self->first and self->last
+  * will have been allocated so we have to de-allocate them. */
+  Py_XDECREF(self->waves);
+  self->waves = PyDict_GetItemString(state, "waves"); /* Borrowed reference. */
+  if (self->waves == NULL) {
+      /* PyDict_GetItemString does not set any error state so we have to. */
+      PyErr_SetString(PyExc_KeyError, "No \"waves\" in pickled dict.");
+      return NULL;
+  }
+  /* Increment the borrowed reference for our instance of it. */
+  Py_INCREF(self->waves);
+
+
+  /* Set nref member */
+  Py_XDECREF(self->nref);
+  self->nref = PyDict_GetItemString(state, "nref"); /* Borrowed reference. */
+  if (self->nref == NULL) {
+      /* PyDict_GetItemString does not set any error state so we have to. */
+      PyErr_SetString(PyExc_KeyError, "No \"nref\" in pickled dict.");
+      return NULL;
+  }
+  Py_INCREF(self->nref);
+
+  /* Set _thick member */
+  Py_XDECREF(self->_thick);
+  self->_thick = PyDict_GetItemString(state, "_thick"); /* Borrowed reference. */
+  if (self->_thick == NULL) {
+      /* PyDict_GetItemString does not set any error state so we have to. */
+      PyErr_SetString(PyExc_KeyError, "No \"_thick\" in pickled dict.");
+      return NULL;
+  }
+  Py_INCREF(self->_thick);
+
+  /* Set _ntype member */
+  Py_XDECREF(self->_ntype);
+  self->_ntype = PyDict_GetItemString(state, "_ntype"); /* Borrowed reference. */
+  if (self->_ntype == NULL) {
+      /* PyDict_GetItemString does not set any error state so we have to. */
+      PyErr_SetString(PyExc_KeyError, "No \"_ntype\" in pickled dict.");
+      return NULL;
+  }
+  Py_INCREF(self->_ntype);
+
+  Py_RETURN_NONE;
+
+}
+
 static PyMemberDef OpticalMedium_members[] = {
   {"waves", T_OBJECT_EX, offsetof(OpticalMedium, waves), 0, "waves"},
   {"nref", T_OBJECT_EX, offsetof(OpticalMedium, nref), 0, "nref"},
@@ -291,53 +398,6 @@ static PyGetSetDef OpticalMedium_getsetters[] = {
 };
 
 static PyObject *
-OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
-  OpticalMedium *inc = NULL;  // the incident medium object
-  double theta = 0.0;
-
-  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
-      return Py_None;
-
-  // create a PyDict to store results
-  PyObject *ret = PyDict_New();
-
-  PyArrayIterObject *iter1, *iter2;
-  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
-  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
-
-  if (iter1 == NULL || iter2 == NULL) {
-    return Py_None;
-  }
-
-  std::complex<double> *admit_s = new std::complex<double>[iter1->size];
-  std::complex<double> *admit_p = new std::complex<double>[iter1->size];
-
-  while (iter1->index < iter1->size) {
-    /* calculate admittances with iter1->dataptr and iter2->dataptr */
-    admit_s[iter1->index] = sqrt(
-      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
-    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
-
-    /* increment iterator */
-    PyArray_ITER_NEXT(iter1);
-    PyArray_ITER_NEXT(iter2);
-  }
-
-  PyObject *arr_s, *arr_p;
-  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
-  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
-  arr_s = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_s);
-  arr_p = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_p);
-
-  // add objects to dict
-  PyDict_SetItem(ret, Py_BuildValue("s", "s"), arr_s);
-  PyDict_SetItem(ret, Py_BuildValue("s", "p"), arr_p);
-
-  Py_INCREF(ret);
-  return ret;
-}
-
-static PyObject *
 OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
   int n_reflect;
 
@@ -356,8 +416,10 @@ OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
 
   while (iter1->index < iter1->size) {
     /* calculate coefficients with iter1->dataptr and iter2->dataptr */
-    coeffs[iter1->index] = (
-      n_reflect * Py_MATH_PI * std::imag(*(std::complex<double> *)iter2->dataptr)) / *(double *)iter2->dataptr;
+    double wv = *(double *)iter1->dataptr;
+    std::complex<double> n_ref = *(std::complex<double> *)iter2->dataptr;
+
+    coeffs[iter1->index] = (std::abs(n_reflect) * Py_MATH_PI * std::imag(n_ref)) / wv;
 
     /* increment iterator */
     PyArray_ITER_NEXT(iter1);
@@ -373,22 +435,68 @@ OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
 }
 
 static PyObject *
-OpticalMedium_nref_effective(OpticalMedium *self, PyObject *args) {
-  double theta = 0.0;
+OpticalMedium_nref_eff(OpticalMedium *self, PyObject *args) {
+  PyObject *theta_obj;  // parse theta as an object
+  PyObject *theta_arr;
 
-  if (!PyArg_ParseTuple(args, "d", &theta)) {
+  if (!PyArg_ParseTuple(args, "O", &theta_obj)) {
     return Py_None;
   }
 
-  PyArrayIterObject *iter;
+  // create the iterator for nref
+  PyArrayIterObject *iter, *iter_t;
   iter = (PyArrayIterObject *)PyArray_IterNew(self->nref);
 
+  /* Handle two cases of theta --> float or array */
+  double *thetas;  // placeholder for angles
+  npy_intp *nref_dims = PyArray_DIMS((PyArrayObject *)self->nref);
+
+  if (PyFloat_CheckExact(theta_obj)) {
+    // check if theta is a float, make an array with theta
+    // that matches shape of nref
+    thetas = new double[iter->size];
+    double t = PyFloat_AsDouble(theta_obj);
+    for (int i = 0; i < (int)iter->size; i++) {
+      thetas[i] = t;
+    }
+
+    // make an array object
+    theta_arr = PyArray_SimpleNewFromData(1, nref_dims, NPY_FLOAT64, (void *)thetas);
+
+  } else {
+    // if theta is not a float, it should be an array
+    // validate the size of the array matches nref
+    int DTYPE = PyArray_ObjectType(theta_obj, NPY_FLOAT);
+    theta_arr = PyArray_FROM_OTF(theta_obj, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+
+    // get the dimensions
+    int theta_ndims = PyArray_NDIM((PyArrayObject *)theta_arr);
+    npy_intp *theta_dims = PyArray_DIMS((PyArrayObject *)theta_arr);
+
+    // validate the dimensions
+    if (theta_ndims != 1) {
+      PyErr_SetString(PyExc_ValueError, "theta expects float or 1-D array");
+      return NULL;
+    }
+
+    if (theta_dims[0] != nref_dims[0]) {
+      PyErr_SetString(PyExc_ValueError, "theta must have same number of elements as nref");
+      return NULL;
+    }
+
+  }
+
+  // set up the iterator for theta
+  iter_t = (PyArrayIterObject *)PyArray_IterNew(theta_arr);
+
+  // store results of nref_eff
   std::complex<double> *nref_eff = new std::complex<double>[iter->size];
 
   while (iter->index < iter->size) {
     /* calculate coefficients with iter1->dataptr and iter2->dataptr */
     double n_real = std::real(*(std::complex<double> *)iter->dataptr);
     double n_imag = std::imag(*(std::complex<double> *)iter->dataptr);
+    double theta = *(double *)iter_t->dataptr;
 
     // compute the inner-most term of the effective index
     double in1a = pow(pow(n_imag, 2) + pow(n_real, 2), 2);
@@ -421,108 +529,73 @@ OpticalMedium_nref_effective(OpticalMedium *self, PyObject *args) {
 }
 
 static PyObject *
-OpticalMedium_path_length(OpticalMedium *self, PyObject *args) {
-
-  if (PyFloat_AsDouble(self->_thick) < 0) {
-    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
-    return NULL;
-  }
-
+OpticalMedium_admittance(OpticalMedium *self, PyObject *args) {
   OpticalMedium *inc = NULL;  // the incident medium object
-  double theta = 0.0;
+  PyObject *theta_obj;  // parse theta as an object
+  PyObject *theta_arr;
 
-  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
-      return Py_None;
-
-  // build values to pass to nref_effective
-  PyObject *arg = Py_BuildValue("(d)", theta);
-  //PyObject *keywords = PyDict_New();
-  //PyDict_SetItemString(keywords, "theta", Py_True);
-  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_effective");
-
-  // make call to nref_effective, clean up memory
-  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
-
-  /* may need to check nref_eff here */
-
-  PyArrayIterObject *iter1, *iter2;
-  iter1 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
-  iter2 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
-
-  // create output pointer array
-  double *p_len = new double[iter1->size];
-
-  while (iter1->index < iter1->size) {
-    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
-    std::complex<double> n_inc = *(std::complex<double>  *)iter1->dataptr;
-    std::complex<double>  n_eff = *(std::complex<double>  *)iter2->dataptr;
-
-    std::complex<double> denom = sqrt(1.0 - (pow(std::abs(n_inc), 2) * pow(sin(theta), 2) / pow(n_eff, 2)));
-
-    p_len[iter1->index] = PyFloat_AsDouble(self->_thick) / std::real(denom);
-
-    /* increment iterator */
-    PyArray_ITER_NEXT(iter1);
-    PyArray_ITER_NEXT(iter2);
-  }
-
-  PyObject *out;
-  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
-  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
-  out = PyArray_SimpleNewFromData(ndims, dims, NPY_FLOAT64, (void *)p_len);
-
-  // release result from Method Call
-  Py_DECREF(nref_eff);
-  Py_DECREF(arg);
-  //Py_DECREF(keywords);
-  Py_DECREF(nref_eff_method);
-
-  return out;
-
-}
-
-
-static PyObject *
-OpticalMedium_admit_effective(OpticalMedium *self, PyObject *args) {
-
-  if (PyFloat_AsDouble(self->_thick) < 0) {
-    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
-    return NULL;
-  }
-
-  OpticalMedium *inc = NULL;  // the incident medium object
-  double theta = 0.0;
-
-  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
+  if (!PyArg_ParseTuple(args, "OO", &inc, &theta_obj))
       return Py_None;
 
   // create a PyDict to store results
   PyObject *ret = PyDict_New();
 
-  // build values to pass to nref_effective
-  PyObject *arg = Py_BuildValue("(d)", theta);
-  //PyObject *keywords = PyDict_New();
-  //PyDict_SetItemString(keywords, "theta", Py_True);
-  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_effective");
-
-  // make call to nref_effective, clean up memory
-  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
-
-  /* may need to check nref_eff here */
-
-  PyArrayIterObject *iter1, *iter2;
-  iter1 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
+  PyArrayIterObject *iter1, *iter2, *iter_t;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
   iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
 
   if (iter1 == NULL || iter2 == NULL) {
     return Py_None;
   }
 
+  /* Handle two cases of theta --> float or array */
+  double *thetas;  // placeholder for angles
+  npy_intp *nref_dims = PyArray_DIMS((PyArrayObject *)self->nref);
+
+  if (PyFloat_CheckExact(theta_obj)) {
+    // check if theta is a float, make an array with theta
+    // that matches shape of nref
+    thetas = new double[iter1->size];
+    double t = PyFloat_AsDouble(theta_obj);
+    for (int i = 0; i < (int)iter1->size; i++) {
+      thetas[i] = t;
+    }
+
+    // make an array object
+    theta_arr = PyArray_SimpleNewFromData(1, nref_dims, NPY_FLOAT64, (void *)thetas);
+
+  } else {
+    // if theta is not a float, it should be an array
+    // validate the size of the array matches nref
+    int DTYPE = PyArray_ObjectType(theta_obj, NPY_FLOAT);
+    theta_arr = PyArray_FROM_OTF(theta_obj, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+
+    // get the dimensions
+    int theta_ndims = PyArray_NDIM((PyArrayObject *)theta_arr);
+    npy_intp *theta_dims = PyArray_DIMS((PyArrayObject *)theta_arr);
+
+    // validate the dimensions
+    if (theta_ndims != 1) {
+      PyErr_SetString(PyExc_ValueError, "theta expects float or 1-D array");
+      return NULL;
+    }
+
+    if (theta_dims[0] != nref_dims[0]) {
+      PyErr_SetString(PyExc_ValueError, "theta must have same number of elements as nref");
+      return NULL;
+    }
+
+  }
+
+  // set up the iterator for theta
+  iter_t = (PyArrayIterObject *)PyArray_IterNew(theta_arr);
+
   std::complex<double> *admit_s = new std::complex<double>[iter1->size];
   std::complex<double> *admit_p = new std::complex<double>[iter1->size];
 
   while (iter1->index < iter1->size) {
     /* calculate admittances with iter1->dataptr and iter2->dataptr */
+    double theta = *(double *)iter_t->dataptr;
     admit_s[iter1->index] = sqrt(
       pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
     admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
@@ -530,6 +603,118 @@ OpticalMedium_admit_effective(OpticalMedium *self, PyObject *args) {
     /* increment iterator */
     PyArray_ITER_NEXT(iter1);
     PyArray_ITER_NEXT(iter2);
+    PyArray_ITER_NEXT(iter_t);
+  }
+
+  PyObject *arr_s, *arr_p;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  arr_s = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_s);
+  arr_p = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)admit_p);
+
+  // add objects to dict
+  PyDict_SetItem(ret, Py_BuildValue("s", "s"), arr_s);
+  PyDict_SetItem(ret, Py_BuildValue("s", "p"), arr_p);
+
+  Py_INCREF(ret);
+  return ret;
+}
+
+static PyObject *
+OpticalMedium_admittance_eff(OpticalMedium *self, PyObject *args) {
+
+  if (PyFloat_AsDouble(self->_thick) < 0) {
+    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
+    return NULL;
+  }
+
+  OpticalMedium *inc = NULL;  // the incident medium object
+  PyObject *theta_obj;  // parse theta as an object
+  PyObject *theta_arr;
+
+  if (!PyArg_ParseTuple(args, "OO", &inc, &theta_obj))
+      return Py_None;
+
+  // create a PyDict to store results
+  PyObject *ret = PyDict_New();
+
+  // build values to pass to nref_effective
+  PyObject *arg = Py_BuildValue("(O)", theta_obj);
+  //PyObject *keywords = PyDict_New();
+  //PyDict_SetItemString(keywords, "theta", Py_True);
+  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_eff");
+
+  // make call to nref_effective, clean up memory
+  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
+
+  /* may need to check nref_eff here */
+
+  PyArrayIterObject *iter1, *iter2, *iter_t;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
+
+  if (iter1 == NULL || iter2 == NULL) {
+    return Py_None;
+  }
+
+  /* Handle two cases of theta --> float or array */
+  double *thetas;  // placeholder for angles
+  npy_intp *nref_dims = PyArray_DIMS((PyArrayObject *)self->nref);
+
+  if (PyFloat_CheckExact(theta_obj)) {
+    // check if theta is a float, make an array with theta
+    // that matches shape of nref
+    thetas = new double[iter1->size];
+    double t = PyFloat_AsDouble(theta_obj);
+    for (int i = 0; i < (int)iter1->size; i++) {
+      thetas[i] = t;
+    }
+
+    // make an array object
+    theta_arr = PyArray_SimpleNewFromData(1, nref_dims, NPY_FLOAT64, (void *)thetas);
+
+  } else {
+    // if theta is not a float, it should be an array
+    // validate the size of the array matches nref
+    int DTYPE = PyArray_ObjectType(theta_obj, NPY_FLOAT);
+    theta_arr = PyArray_FROM_OTF(theta_obj, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+
+    // get the dimensions
+    int theta_ndims = PyArray_NDIM((PyArrayObject *)theta_arr);
+    npy_intp *theta_dims = PyArray_DIMS((PyArrayObject *)theta_arr);
+
+    // validate the dimensions
+    if (theta_ndims != 1) {
+      PyErr_SetString(PyExc_ValueError, "theta expects float or 1-D array");
+      return NULL;
+    }
+
+    if (theta_dims[0] != nref_dims[0]) {
+      PyErr_SetString(PyExc_ValueError, "theta must have same number of elements as nref");
+      return NULL;
+    }
+
+  }
+
+  // set up the iterator for theta
+  iter_t = (PyArrayIterObject *)PyArray_IterNew(theta_arr);
+
+
+  std::complex<double> *admit_s = new std::complex<double>[iter1->size];
+  std::complex<double> *admit_p = new std::complex<double>[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate admittances with iter1->dataptr and iter2->dataptr */
+    double theta = *(double *)iter_t->dataptr;
+
+    admit_s[iter1->index] = sqrt(
+      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
+    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+    PyArray_ITER_NEXT(iter_t);
   }
 
   PyObject *arr_s, *arr_p;
@@ -553,6 +738,113 @@ OpticalMedium_admit_effective(OpticalMedium *self, PyObject *args) {
   return ret;
 }
 
+static PyObject *
+OpticalMedium_path_length(OpticalMedium *self, PyObject *args) {
+
+  if (PyFloat_AsDouble(self->_thick) < 0) {
+    PyErr_SetString(PyExc_ValueError, "thickness must be finite and greater than zero");
+    return NULL;
+  }
+
+  OpticalMedium *inc = NULL;  // the incident medium object
+  PyObject *theta_obj;  // parse theta as an object
+  PyObject *theta_arr;
+
+  if (!PyArg_ParseTuple(args, "OO", &inc, &theta_obj))
+      return Py_None;
+
+  // build values to pass to nref_effective
+  PyObject *arg = Py_BuildValue("(O)", theta_obj);
+  //PyObject *keywords = PyDict_New();
+  //PyDict_SetItemString(keywords, "theta", Py_True);
+  PyObject *nref_eff_method = PyObject_GetAttrString((PyObject *)self, "nref_eff");
+
+  // make call to nref_effective, clean up memory
+  PyObject *nref_eff = PyObject_Call(nref_eff_method, arg, NULL);
+
+  /* may need to check nref_eff here */
+
+  PyArrayIterObject *iter1, *iter2, *iter_t;
+  iter1 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
+  iter2 = (PyArrayIterObject *)PyArray_IterNew(nref_eff);
+
+
+  /* Handle two cases of theta --> float or array */
+  double *thetas;  // placeholder for angles
+  npy_intp *nref_dims = PyArray_DIMS((PyArrayObject *)self->nref);
+
+  if (PyFloat_CheckExact(theta_obj)) {
+    // check if theta is a float, make an array with theta
+    // that matches shape of nref
+    thetas = new double[iter1->size];
+    double t = PyFloat_AsDouble(theta_obj);
+    for (int i = 0; i < (int)iter1->size; i++) {
+      thetas[i] = t;
+    }
+
+    // make an array object
+    theta_arr = PyArray_SimpleNewFromData(1, nref_dims, NPY_FLOAT64, (void *)thetas);
+
+  } else {
+    // if theta is not a float, it should be an array
+    // validate the size of the array matches nref
+    int DTYPE = PyArray_ObjectType(theta_obj, NPY_FLOAT);
+    theta_arr = PyArray_FROM_OTF(theta_obj, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+
+    // get the dimensions
+    int theta_ndims = PyArray_NDIM((PyArrayObject *)theta_arr);
+    npy_intp *theta_dims = PyArray_DIMS((PyArrayObject *)theta_arr);
+
+    // validate the dimensions
+    if (theta_ndims != 1) {
+      PyErr_SetString(PyExc_ValueError, "theta expects float or 1-D array");
+      return NULL;
+    }
+
+    if (theta_dims[0] != nref_dims[0]) {
+      PyErr_SetString(PyExc_ValueError, "theta must have same number of elements as nref");
+      return NULL;
+    }
+
+  }
+
+  // set up the iterator for theta
+  iter_t = (PyArrayIterObject *)PyArray_IterNew(theta_arr);
+
+
+  // create output pointer array
+  double *p_len = new double[iter1->size];
+
+  while (iter1->index < iter1->size) {
+    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
+    std::complex<double> n_inc = *(std::complex<double>  *)iter1->dataptr;
+    std::complex<double>  n_eff = *(std::complex<double>  *)iter2->dataptr;
+    double theta = *(double *)iter_t->dataptr;
+
+    std::complex<double> denom = sqrt(1.0 - (pow(std::abs(n_inc), 2) * pow(sin(theta), 2) / pow(n_eff, 2)));
+
+    p_len[iter1->index] = PyFloat_AsDouble(self->_thick) / std::real(denom);
+
+    /* increment iterator */
+    PyArray_ITER_NEXT(iter1);
+    PyArray_ITER_NEXT(iter2);
+    PyArray_ITER_NEXT(iter_t);
+  }
+
+  PyObject *out;
+  int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
+  npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
+  out = PyArray_SimpleNewFromData(ndims, dims, NPY_FLOAT64, (void *)p_len);
+
+  // release result from Method Call
+  Py_DECREF(nref_eff);
+  Py_DECREF(arg);
+  //Py_DECREF(keywords);
+  Py_DECREF(nref_eff_method);
+
+  return out;
+
+}
 
 static PyObject *
 OpticalMedium_fresnel_coeffs(OpticalMedium *self, PyObject *args) {
@@ -563,16 +855,16 @@ OpticalMedium_fresnel_coeffs(OpticalMedium *self, PyObject *args) {
   }
 
   OpticalMedium *inc = NULL;  // the incident medium object
-  double theta = 0.0;
+  PyObject *theta_obj;  // parse theta as an object
+  PyObject *theta_arr;
 
-  if (!PyArg_ParseTuple(args, "Od", &inc, &theta))
+  if (!PyArg_ParseTuple(args, "OO", &inc, &theta_obj))
       return Py_None;
 
   // create a PyDict to store results
   PyObject *ret = PyDict_New();
 
-
-  PyArrayIterObject *iter1, *iter2;
+  PyArrayIterObject *iter1, *iter2, *iter_t;
   iter1 = (PyArrayIterObject *)PyArray_IterNew(self->nref);
   iter2 = (PyArrayIterObject *)PyArray_IterNew(inc->nref);
 
@@ -580,60 +872,143 @@ OpticalMedium_fresnel_coeffs(OpticalMedium *self, PyObject *args) {
     return Py_None;
   }
 
+
+  /* Handle two cases of theta --> float or array */
+  double *thetas;  // placeholder for angles
+  npy_intp *nref_dims = PyArray_DIMS((PyArrayObject *)self->nref);
+
+  if (PyFloat_CheckExact(theta_obj)) {
+    // check if theta is a float, make an array with theta
+    // that matches shape of nref
+    thetas = new double[iter1->size];
+    double t = PyFloat_AsDouble(theta_obj);
+    for (int i = 0; i < (int)iter1->size; i++) {
+      thetas[i] = t;
+    }
+
+    // make an array object
+    theta_arr = PyArray_SimpleNewFromData(1, nref_dims, NPY_FLOAT64, (void *)thetas);
+
+  } else {
+    // if theta is not a float, it should be an array
+    // validate the size of the array matches nref
+    int DTYPE = PyArray_ObjectType(theta_obj, NPY_FLOAT);
+    theta_arr = PyArray_FROM_OTF(theta_obj, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+
+    // get the dimensions
+    int theta_ndims = PyArray_NDIM((PyArrayObject *)theta_arr);
+    npy_intp *theta_dims = PyArray_DIMS((PyArrayObject *)theta_arr);
+
+    // validate the dimensions
+    if (theta_ndims != 1) {
+      PyErr_SetString(PyExc_ValueError, "theta expects float or 1-D array");
+      return NULL;
+    }
+
+    if (theta_dims[0] != nref_dims[0]) {
+      PyErr_SetString(PyExc_ValueError, "theta must have same number of elements as nref");
+      return NULL;
+    }
+
+  }
+
+  // set up the iterator for theta
+  iter_t = (PyArrayIterObject *)PyArray_IterNew(theta_arr);
+
+
+  // S/P Polarized Transmission
   std::complex<double> *Ts = new std::complex<double>[iter1->size];
   std::complex<double> *Tp = new std::complex<double>[iter1->size];
 
+  // S/P Polarized reflection
+  std::complex<double> *Rs = new std::complex<double>[iter1->size];
+  std::complex<double> *Rp = new std::complex<double>[iter1->size];
+
+  // S/P Polarized Fresnel Amplitude Coefficients
+  std::complex<double> *Fs = new std::complex<double>[iter1->size];
+  std::complex<double> *Fp = new std::complex<double>[iter1->size];
+
   while (iter1->index < iter1->size) {
-    /* calculate admittances with iter1->dataptr and iter2->dataptr */
-    admit_s[iter1->index] = sqrt(
-      pow(*(std::complex<double> *)iter1->dataptr, 2) - pow(*(std::complex<double> *)iter2->dataptr, 2) * sin(theta));
-    admit_p[iter1->index] = pow(*(std::complex<double> *)iter1->dataptr, 2) / admit_s[iter1->index];
+    /* calculate coefficients with iter1->dataptr and iter2->dataptr */
+    std::complex<double> n_ref = *(std::complex<double> *)iter1->dataptr;  // self->nref
+    std::complex<double> n_inc = *(std::complex<double> *)iter2->dataptr;  // inc->nref
+    double theta = *(double *)iter_t->dataptr;  // theta
+
+    // temporary variables used in calculation
+    std::complex<double> ftemp;
+
+    // this is the last term in each equation -- calculate once
+    ftemp = sqrt(pow(n_ref, 2) - pow(n_inc, 2) * pow(sin(theta), 2));
+
+    // S-polarized fresnel coefficients
+    Fs[iter1->index] = (n_inc * cos(theta) - ftemp) / (n_inc * cos(theta) + ftemp);
+
+    // P-polarized fresnel coefficients
+    Fp[iter1->index] = -(pow(n_ref, 2) * cos(theta) - n_inc * ftemp) / (pow(n_ref, 2) * cos(theta) + n_inc * ftemp);
+
+    // S and P polarized reflection
+    Rs[iter1->index] = pow(std::abs(Fs[iter1->index]), 2);
+    Rp[iter1->index] = pow(std::abs(Fp[iter1->index]), 2);
+
+    // S and P Polarized transmission
+    std::complex<double> one_c(1, 0);
+    Ts[iter1->index] = one_c - Rs[iter1->index];
+    Tp[iter1->index] = one_c - Rp[iter1->index];
 
     /* increment iterator */
     PyArray_ITER_NEXT(iter1);
     PyArray_ITER_NEXT(iter2);
+    PyArray_ITER_NEXT(iter_t);
   }
 
-  PyObject *arr_Ts, *arr_Tp;
+  PyObject *arr_Ts, *arr_Tp, *arr_Rs, *arr_Rp, *arr_Fs, *arr_Fp;
   int ndims = PyArray_NDIM((PyArrayObject *)self->nref);
   npy_intp *dims = PyArray_DIMS((PyArrayObject *)self->nref);
   arr_Ts = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Ts);
   arr_Tp = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Tp);
+  arr_Rs = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Rs);
+  arr_Rp = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Rp);
+  arr_Fs = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Fs);
+  arr_Fp = PyArray_SimpleNewFromData(ndims, dims, NPY_COMPLEX128, (void *)Fp);
 
   // add objects to dict
   PyDict_SetItem(ret, Py_BuildValue("s", "Ts"), arr_Ts);
   PyDict_SetItem(ret, Py_BuildValue("s", "Tp"), arr_Tp);
   PyDict_SetItem(ret, Py_BuildValue("s", "Rs"), arr_Rs);
   PyDict_SetItem(ret, Py_BuildValue("s", "Rp"), arr_Rp);
-  PyDict_SetItem(ret, Py_BuildValue("s", "rs"), arr_rs);
-  PyDict_SetItem(ret, Py_BuildValue("s", "rp"), arr_rp);
+  PyDict_SetItem(ret, Py_BuildValue("s", "Fs"), arr_Fs);
+  PyDict_SetItem(ret, Py_BuildValue("s", "Fp"), arr_Fp);
 
   Py_INCREF(ret);
-
 
   return ret;
 }
 
 
-
 static PyMethodDef OpticalMedium_methods[] = {
-    {"admittance", (PyCFunction) OpticalMedium_admittance, METH_VARARGS,
-     "Return the admittances between self and incident medium"
-    },
     {"absorption_coeffs", (PyCFunction) OpticalMedium_absorption_coeffs, METH_VARARGS,
      "Calculates the absorption coefficient for n_ref reflections"
     },
-    {"nref_effective", (PyCFunction) OpticalMedium_nref_effective, METH_VARARGS,
+    {"nref_eff", (PyCFunction) OpticalMedium_nref_eff, METH_VARARGS,
      "Calculates the effective refractive index through the medium"
+    },
+    {"admittance", (PyCFunction) OpticalMedium_admittance, METH_VARARGS,
+     "Return the admittances between self and incident medium"
+    },
+    {"admittance_eff", (PyCFunction) OpticalMedium_admittance_eff, METH_VARARGS,
+     "Return the effective admittances between medium and incident medium"
     },
     {"path_length", (PyCFunction) OpticalMedium_path_length, METH_VARARGS,
      "Calculates the estimated optical path length through the medium"
     },
-    {"admit_effective", (PyCFunction) OpticalMedium_admit_effective, METH_VARARGS,
-     "Return the effective admittances between medium and incident medium"
-    },
     {"fresnel_coeffs", (PyCFunction) OpticalMedium_fresnel_coeffs, METH_VARARGS,
      "Calculates the fresnel amplitudes & intensities of the medium"
+    },
+    {"__getstate__", (PyCFunction) OpticalMedium_getstate, METH_NOARGS,
+      "OpticalMedium the Custom object"
+    },
+    {"__setstate__", (PyCFunction) OpticalMedium_setstate, METH_O,
+      "Un-pickle the OpticalMedium object"
     },
     {NULL}  /* Sentinel */
 };

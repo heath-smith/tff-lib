@@ -5,7 +5,6 @@ This module contains the ThinFilmFilter class.
 from typing import Dict
 from numpy.typing import NDArray
 import numpy as np
-from .substrate import Substrate
 from .films import FilmStack
 from .medium import OpticalMedium
 
@@ -25,9 +24,9 @@ class ThinFilmFilter():
 
     def __init__(
             self,
-            substrate: Substrate,
-            film_stack: FilmStack,
-            incident: OpticalMedium
+            sub: OpticalMedium,
+            stack: FilmStack,
+            inc: OpticalMedium
     ) -> None:
         """
         Initializes the ThinFilmFilter class.
@@ -39,11 +38,11 @@ class ThinFilmFilter():
         incident: OpticalMedium, the optical medium
         """
 
-        self.substrate = substrate
-        self.film_stack = film_stack
-        self.incident = incident
+        self.sub = sub
+        self.stack = stack
+        self.inc = inc
 
-    def fresnel_coefficients(self, theta: float, reflection: str) -> Dict[str, NDArray]:
+    def fresnel_coeffs(self, theta: float, reflection: str) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of filter given the
         substrate admittance and incident medium admittance.
@@ -68,17 +67,18 @@ class ThinFilmFilter():
         """
 
         if reflection == 'medium':
-            admit_sub = self.substrate.admittance(self.incident, theta)
-            admit_inc = self.incident.admittance(self.incident, theta)
-            char_matrix = self.film_stack.char_matrix(self.incident, theta)
+            admit_sub = self.sub.admittance(self.inc, theta)
+            admit_inc = self.inc.admittance(self.inc, theta)
+            char_matrix = self.stack.char_matrix(self.inc, theta)
         elif reflection == 'substrate':
             theta_inverse = np.arcsin(
-                self.incident.ref_index / self.substrate.ref_index * np.sin(theta))
-            admit_sub = self.substrate.eff_admittance(self.incident, theta_inverse)
-            admit_inc = self.incident.admittance(self.incident, theta_inverse)
-            char_matrix = self.film_stack.char_matrix(self.incident, theta_inverse)
+                self.inc.nref / self.sub.nref * np.sin(theta))
+            admit_sub = self.sub.admittance_eff(self.inc, theta_inverse)
+            admit_inc = self.inc.admittance(self.inc, theta_inverse)
+            char_matrix = self.stack.char_matrix(self.inc, theta_inverse)
         else:
             raise ValueError("reflection must be one of 'medium' or 'substrate'")
+
 
         # calculate admittance of the incident interface
         admit_inc_int = {
@@ -121,25 +121,25 @@ class ThinFilmFilter():
             'T' : average transmission spectrum over wavelength range ([Tp + Ts] / 2),
             'Ts' : s-polarized transmission spectrum wavelength range,
             'Tp' : p-polarized transmission spectrum over wavelength range,
-            'R' : average reflection spectrum over wavelength range,
+            'R' : average reflection spectrum over wavelength range ([Rp + Rs] / 2),
             'Rs' : s-polarized reflection spectrum over wavelength range,
             'Rp' : p-polarized reflection spectrum over wavelength range }
         """
 
         # Calculate the path length through the substrate
-        sub_p_len = self.substrate.path_length(self.incident, theta)
+        sub_p_len = self.sub.path_length(self.inc, theta)
 
         # Fresnel coefficients of incident medium / substrate interface
-        sub_fresnel = self.substrate.fresnel_coefficients(self.incident, theta)
+        sub_fresnel = self.sub.fresnel_coeffs(self.inc, theta)
 
         # reflection originating from incident medium
-        inc_med_ref = self.fresnel_coefficients(theta, 'medium')
+        inc_med_ref = self.fresnel_coeffs(theta, 'medium')
 
         # reflection originating from substrate
-        sub_ref = self.fresnel_coefficients(theta, 'substrate')
+        sub_ref = self.fresnel_coeffs(theta, 'substrate')
 
         # calculate the absorption coefficients for multiple reflections
-        alpha = self.substrate.absorption_coefficients(n_ref=4)
+        alpha = self.sub.absorption_coeffs(n_reflect=4)
 
         ## might be better to have a function from here down, which
         ## takes in the results from the previous method calls

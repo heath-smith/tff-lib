@@ -55,6 +55,7 @@ class TestMedium(unittest.TestCase):
         cls._admittance = cls.test_data['output']['admit_delta']
         cls._nref_effective = cls.test_data['output']['effective_index']
         cls._path_length = cls.test_data['output']['path_length']
+        cls._fresnel = cls.test_data['output']['fresnel_bare']
 
     def test__init__(self):
         """
@@ -125,28 +126,28 @@ class TestMedium(unittest.TestCase):
         with self.assertRaises(ValueError):
             opt.ntype = -5  # can only be > 0 or == -1
 
-    def test_absorption_coefficients(self):
+    def test_absorption_coeffs(self):
         """
-        test absorption_coefficients()
+        test absorption_coeffs()
         """
 
         opt = OpticalMedium(self._waves, self._nref)
 
-        abs_coeffs = opt.absorption_coefficients()
+        abs_coeffs = opt.absorption_coeffs()
 
         # expect to be all zero's since substrate has
         # no non-zero imaginary values
         self.assertEqual(0, sum(abs_coeffs))
 
-    def test_nref_effective(self):
+    def test_nref_eff(self):
         """
-        test nref_effective()
+        test nref_eff()
         """
 
         # test effective index using substrate as medium
         opt = OpticalMedium(self._waves, self._nref)
 
-        nref_eff = opt.nref_effective(self._theta)
+        nref_eff = opt.nref_eff(self._theta)
 
         # when theta == 0, expect eff_index == ref_index
         nptest.assert_array_almost_equal(
@@ -168,6 +169,17 @@ class TestMedium(unittest.TestCase):
             self._admittance['ns_inc'], adm['s'], decimal=self._precision)
         nptest.assert_array_almost_equal(
             self._admittance['np_inc'], adm['p'], decimal=self._precision)
+
+        # test admittance using substrate with air as incident medium
+        sub = OpticalMedium(self._waves, self._nref)
+
+        # calculate air-air interface admittance
+        sub_adm = sub.admittance(inc, self._theta)
+
+        nptest.assert_array_almost_equal(
+            self._admittance['ns_sub'], sub_adm['s'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._admittance['np_sub'], sub_adm['p'], decimal=self._precision)
 
     def test_path_length(self):
         """
@@ -200,9 +212,9 @@ class TestMedium(unittest.TestCase):
         with self.assertRaises(ValueError):
             med.path_length(inc, self._theta)
 
-    def test_admit_effective(self):
+    def test_admittance_eff(self):
         """
-        test admit_effective()
+        test admittance_eff()
         """
 
         # create a finite medium
@@ -211,8 +223,8 @@ class TestMedium(unittest.TestCase):
         # create infinite incident medium 'air'
         inc = OpticalMedium(self._waves, self._incident)
 
-        # test admit_effective() method
-        adm = med.admit_effective(inc, self._theta)
+        # test admittance_eff() method
+        adm = med.admittance_eff(inc, self._theta)
 
         # expect effective admittance to equal admittance
         # at theta == 0
@@ -220,6 +232,33 @@ class TestMedium(unittest.TestCase):
             self._admittance['ns_sub'], adm['s'], decimal=self._precision)
         nptest.assert_array_almost_equal(
             self._admittance['np_sub'], adm['p'], decimal=self._precision)
+
+    def test_fresnel_coeffs(self):
+        """
+        test fresnel_coeffs()
+        """
+
+        # create an optical medium with finite thickness
+        med = OpticalMedium(self._waves, self._nref, thick=self._thick)
+
+        # create an infinite incident medium of air
+        inc = OpticalMedium(self._waves, self._incident)
+
+        fresnel = med.fresnel_coeffs(inc, self._theta)
+
+        nptest.assert_array_almost_equal(
+            self._fresnel['Ts'], fresnel['Ts'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel['Tp'], fresnel['Tp'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel['Rs'], fresnel['Rs'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel['Rp'], fresnel['Rp'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel['Fs'], fresnel['Fs'], decimal=self._precision)
+        nptest.assert_array_almost_equal(
+            self._fresnel['Fp'], fresnel['Fp'], decimal=self._precision)
+
 
 
     @classmethod

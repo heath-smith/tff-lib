@@ -46,9 +46,9 @@ class TestFilmStack(unittest.TestCase):
         cls._precision = 12
 
         # setup input data from test_expected.json
-        cls._material = 'H'
-        cls._thickness = 0.5
-        cls._wavelengths = cls.test_data['input']['wv']
+        cls._ntype = 1  # 1 = high index material
+        cls._thick = 0.5
+        cls._waves = cls.test_data['input']['wv']
         cls._high_mat = [complex(x) for x in cls.test_data['input']['high_mat']]
         cls._low_mat = [complex(x) for x in cls.test_data['input']['low_mat']]
         cls._layers = cls.test_data['input']['layers']
@@ -61,10 +61,10 @@ class TestFilmStack(unittest.TestCase):
         # generate test FilmStack
         cls._stack = [
             ThinFilm(
-                cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
-                lyr[1],
-                lyr[0]
+                cls._waves,
+                cls._high_mat if lyr[0] == 1 else cls._low_mat,
+                thick=lyr[1],
+                ntype=lyr[0]
             )
             for lyr in cls._layers
         ]
@@ -74,7 +74,7 @@ class TestFilmStack(unittest.TestCase):
 
         # test matrix
         cls._matrix = [
-            cls._high_mat if l[0] == 'H' else cls._low_mat
+            cls._high_mat if l[0] == 1 else cls._low_mat
             for l in cls._layers
         ]
 
@@ -100,7 +100,6 @@ class TestFilmStack(unittest.TestCase):
         cls._medium = OpticalMedium(
             cls.test_data['input']['wv'],
             [complex(1.0, 0) for i in cls.test_data['input']['wv']],
-            float('inf')
         )
 
     def test_film_stack_init_defaults(self):
@@ -164,7 +163,7 @@ class TestFilmStack(unittest.TestCase):
         stk1 = FilmStack(self._stack)
 
         # this layer should work as expected
-        lyr1 = ThinFilm(self._wavelengths, self._low_mat, 500.0, 'L')
+        lyr1 = ThinFilm(self._waves, self._low_mat, thick=500.0, ntype=0)
         stk1.append_layer(lyr1)
 
         # validate last layer is appended correctly
@@ -175,7 +174,7 @@ class TestFilmStack(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             # this layer should give a ValueError
-            lyr2 = ThinFilm(self._wavelengths, self._high_mat, 500.0, 'H')
+            lyr2 = ThinFilm(self._waves, self._high_mat, thick=500.0, ntype=1)
             stk2.append_layer(lyr2)
 
     def test_remove_layer(self):
@@ -188,10 +187,10 @@ class TestFilmStack(unittest.TestCase):
         mock_lyrs = self._layers[0:4] + new_lyr + self._layers[7:]
         mock_stack = [
             ThinFilm(
-                self._wavelengths,
-                self._high_mat if lyr[0] == 'H' else self._low_mat,
-                lyr[1],
-                lyr[0]
+                self._waves,
+                self._high_mat if lyr[0] == 1 else self._low_mat,
+                thick=lyr[1],
+                ntype=lyr[0]
             )
             for lyr in mock_lyrs
         ]
@@ -209,8 +208,8 @@ class TestFilmStack(unittest.TestCase):
         stk = FilmStack(self._stack)
         lyr = stk.get_layer(5)
 
-        self.assertEqual(lyr.material, self._stack[5].material)
-        self.assertEqual(lyr.thickness, self._stack[5].thickness)
+        self.assertEqual(lyr.ntype, self._stack[5].ntype)
+        self.assertEqual(lyr.thick, self._stack[5].thick)
 
     def test_admittance(self):
         """

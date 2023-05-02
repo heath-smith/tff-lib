@@ -18,7 +18,7 @@ import json
 import time
 import numpy as np
 import numpy.testing as nptest
-from tff_lib import ThinFilm, OpticalMedium, Substrate, FilmStack
+from tff_lib import ThinFilm, OpticalMedium, FilmStack
 
 # class under test
 from tff_lib import ThinFilmFilter
@@ -52,32 +52,32 @@ class TestThinFilmFilter(unittest.TestCase):
         cls._high_mat = [complex(x) for x in cls.test_data['input']['high_mat']]
         cls._low_mat = [complex(x) for x in cls.test_data['input']['low_mat']]
         cls._layers = cls.test_data['input']['layers']
-        cls._sub_ref_index = cls.test_data['input']['substrate']
+        cls._sub_ref_index = [complex(x) for x in cls.test_data['input']['substrate']]
         cls._fresnel = cls.test_data['output']['fresnel_film']
         cls._filspec = cls.test_data['output']['filspec']
 
         # generate test ThinFilmFilter
-        cls._stack = [
+        cls._films = [
             ThinFilm(
                 cls._wavelengths,
-                cls._high_mat if lyr[0] == 'H' else cls._low_mat,
-                lyr[1],
-                lyr[0]
+                cls._high_mat if lyr[0] == 1 else cls._low_mat,
+                thick=lyr[1],
+                ntype=lyr[0]
             )
             for lyr in cls._layers
         ]
 
         # test OpticalMedium (air)
-        cls._incident = OpticalMedium(
+        cls._inc = OpticalMedium(
             cls.test_data['input']['wv'],
             [complex(1.0, 0) for i in cls.test_data['input']['wv']])
 
         # test substrate
-        cls._substrate = Substrate(
-            cls._wavelengths, cls._sub_ref_index, cls._sub_thickness)
+        cls._sub = OpticalMedium(
+            cls._wavelengths, cls._sub_ref_index, thick=cls._sub_thickness)
 
         # test FilmStack
-        cls._filmstack = FilmStack(cls._stack)
+        cls._stack = FilmStack(cls._films)
 
         # use complex conjugates for fresnel coefficients
         cls._fresnel_conj = {
@@ -90,25 +90,25 @@ class TestThinFilmFilter(unittest.TestCase):
         test __init__()
         """
 
-        tff = ThinFilmFilter(self._substrate,
-                             self._filmstack,
-                             self._incident)
+        tff = ThinFilmFilter(self._sub,
+                             self._stack,
+                             self._inc)
 
-        self.assertEqual(self._substrate, tff.substrate)
-        self.assertEqual(self._filmstack, tff.film_stack)
-        self.assertEqual(self._incident, tff.incident)
+        self.assertEqual(self._sub, tff.sub)
+        self.assertEqual(self._stack, tff.stack)
+        self.assertEqual(self._inc, tff.inc)
 
-    def test_fresnel_coefficients(self):
+    def test_fresnel_coeffs(self):
         """
-        test fresnel_coefficients()
+        test fresnel_coeffs()
         """
 
-        tff = ThinFilmFilter(self._substrate,
-                             self._filmstack,
-                             self._incident)
+        tff = ThinFilmFilter(self._sub,
+                             self._stack,
+                             self._inc)
 
         # test with 'medium' reflection
-        fresnel = tff.fresnel_coefficients(self._theta, 'medium')
+        fresnel = tff.fresnel_coeffs(self._theta, 'medium')
 
         nptest.assert_array_almost_equal(
             self._fresnel_conj['Ts'], fresnel['Ts'], decimal=self._precision)
@@ -128,9 +128,9 @@ class TestThinFilmFilter(unittest.TestCase):
         test filter_spectrum()
         """
 
-        tff = ThinFilmFilter(self._substrate,
-                             self._filmstack,
-                             self._incident)
+        tff = ThinFilmFilter(self._sub,
+                             self._stack,
+                             self._inc)
 
         filspec = tff.filter_spectrum(self._theta)
 
