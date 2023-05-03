@@ -1,7 +1,7 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 """
-This module contains the test suit for the OpticalMedium
+This module contains the test suite for the OpticalMedium
 class.
 
 Usage

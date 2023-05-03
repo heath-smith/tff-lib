@@ -132,8 +132,8 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
 
   if (waves) {
 
-    DTYPE = PyArray_ObjectType(waves, NPY_FLOAT);
-    temp_wv = PyArray_FROM_OTF(waves, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+    // wavelength values should always be floating point numbers
+    temp_wv = PyArray_FROM_OTF(waves, NPY_FLOAT64, NPY_ARRAY_INOUT_ARRAY);
 
     if (temp_wv == NULL) {
       Py_CLEAR(temp_wv);
@@ -150,8 +150,8 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
 
   if (nref) {
 
-    DTYPE = PyArray_ObjectType(nref, NPY_FLOAT);
-    temp_nref = PyArray_FROM_OTF(nref, DTYPE, NPY_ARRAY_INOUT_ARRAY);
+    // use complex values for NREF, ok if doubles or ints passed in
+    temp_nref = PyArray_FROM_OTF(nref, NPY_COMPLEX128, NPY_ARRAY_INOUT_ARRAY);
 
     if (temp_nref == NULL) {
       Py_CLEAR(temp_nref);

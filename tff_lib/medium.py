@@ -62,6 +62,7 @@ class OpticalMedium(medium.OpticalMedium):
             if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
              waves or nref not 1-D.
         """
+        
         super().__init__(waves, nref, **kwargs)
 
     @property

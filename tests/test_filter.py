@@ -1,7 +1,7 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 """
-This module contains the test suit for the ThinFilmFilter
+This module contains the test suite for the ThinFilmFilter
 class.
 
 Usage
@@ -98,17 +98,30 @@ class TestThinFilmFilter(unittest.TestCase):
         self.assertEqual(self._stack, tff.stack)
         self.assertEqual(self._inc, tff.inc)
 
-    def test_fresnel_coeffs(self):
+    def test_fresnel_coeffs_medium(self):
         """
-        test fresnel_coeffs()
+        test fresnel_coeffs() with medium reflection
         """
 
         tff = ThinFilmFilter(self._sub,
                              self._stack,
                              self._inc)
 
-        # test with 'medium' reflection
-        fresnel = tff.fresnel_coeffs(self._theta, 'medium')
+        t_avg = np.zeros(1000)
+        for i in range(1000):
+            # time the execution
+            start = time.perf_counter()
+
+            # test with 'medium' reflection
+            fresnel = tff.fresnel_coeffs(self._theta, 'medium')
+
+            # end time
+            end = time.perf_counter()
+            t_avg[i] = end - start
+
+        # average time
+        t_avg = np.mean(t_avg)
+        sys.stdout.write(f"\nThinFilmFilter.fresnel_coeffs('medium') Avg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_array_almost_equal(
             self._fresnel_conj['Ts'], fresnel['Ts'], decimal=self._precision)
@@ -123,6 +136,45 @@ class TestThinFilmFilter(unittest.TestCase):
         nptest.assert_array_almost_equal(
             self._fresnel_conj['rp'], fresnel['rp'], decimal=self._precision)
 
+    def test_fresnel_coeffs_substrate(self):
+        """
+        test fresnel_coeffs() with substrate reflection
+        """
+
+        tff = ThinFilmFilter(self._sub,
+                             self._stack,
+                             self._inc)
+
+        t_avg = np.zeros(1000)
+        for i in range(1000):
+            # time the execution
+            start = time.perf_counter()
+
+            # test with 'medium' reflection
+            fresnel = tff.fresnel_coeffs(self._theta, 'substrate')
+
+            # end time
+            end = time.perf_counter()
+            t_avg[i] = end - start
+
+        # average time
+        t_avg = np.mean(t_avg)
+        sys.stdout.write(f"\nThinFilmFilter.fresnel_coeffs('substrate') Avg Time= {round(t_avg, 4)} seconds.\n")
+
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['Ts'], fresnel['Ts'], decimal=self._precision)
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['Tp'], fresnel['Tp'], decimal=self._precision)
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['Rs'], fresnel['Rs'], decimal=self._precision)
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['Rp'], fresnel['Rp'], decimal=self._precision)
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['rs'], fresnel['rs'], decimal=self._precision)
+        ## nptest.assert_array_almost_equal(
+        ##     self._fresnel_conj['rp'], fresnel['rp'], decimal=self._precision)
+
+
     def test_filter_spectrum(self):
         """
         test filter_spectrum()
@@ -132,7 +184,21 @@ class TestThinFilmFilter(unittest.TestCase):
                              self._stack,
                              self._inc)
 
-        filspec = tff.filter_spectrum(self._theta)
+        t_avg = np.zeros(1000)
+        for i in range(1000):
+            # time the execution
+            start = time.perf_counter()
+
+            # test filter_spectrum()
+            filspec = tff.filter_spectrum(self._theta)
+
+            # end time
+            end = time.perf_counter()
+            t_avg[i] = end - start
+
+        # average time
+        t_avg = np.mean(t_avg)
+        sys.stdout.write(f"\nThinFilmFilter.filter_spectrum() Avg Time= {round(t_avg, 4)} seconds.\n")
 
         nptest.assert_almost_equal(
             self._filspec['T'], filspec['T'], decimal=self._precision, verbose=True)

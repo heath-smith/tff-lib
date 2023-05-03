@@ -22,12 +22,7 @@ class ThinFilmFilter():
         incident: OpticalMedium,
     """
 
-    def __init__(
-            self,
-            sub: OpticalMedium,
-            stack: FilmStack,
-            inc: OpticalMedium
-    ) -> None:
+    def __init__(self, sub: OpticalMedium, stack: FilmStack, inc: OpticalMedium) -> None:
         """
         Initializes the ThinFilmFilter class.
 

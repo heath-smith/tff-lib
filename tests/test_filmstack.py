@@ -1,7 +1,7 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 """
-This module contains the test suit for the FilmStack
+This module contains the test suite for the FilmStack
 class.
 
 Usage
@@ -282,13 +282,28 @@ class TestFilmStack(unittest.TestCase):
 
     def test_insert_layer(self):
         """
-        PENDING -----> test insert_layer()
+        test insert_layer()
         """
 
-    def test_film_stack_invalid_inputs(self):
-        """
-        PENDING -----> test __init__() with invalid input values
-        """
+        stk1 = FilmStack(self._stack)
+
+        # this layer should work as expected
+        lyr1 = ThinFilm(self._waves, self._low_mat, thick=500.0, ntype=0)
+        stk1.insert_layer(lyr1, 4)
+
+        # assert number of layers is correct (should be n + 2)
+        self.assertEqual(stk1.num_layers, len(self._stack) + 2)
+
+        # assert new_lyr[5] == inserted layer
+        self.assertEqual(stk1.stack[5].thick, lyr1.thick)
+
+        # assert thickness of new_lyr[i] and new_lyr[i + 2] == 1/2 lyr[i].thick
+        self.assertEqual(stk1.stack[4].thick, self._stack[4].thick * 0.5)
+        self.assertEqual(stk1.stack[6].thick, self._stack[4].thick * 0.5)
+
+        # assert raises value error if same ntype
+        with self.assertRaises(ValueError):
+            stk1.insert_layer(lyr1, 1)
 
     @classmethod
     def tearDownClass(cls):
