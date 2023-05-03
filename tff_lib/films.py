@@ -169,13 +169,13 @@ class FilmStack():
                 waves: Iterable[float],
                 nref: Iterable[complex],
                 **kwargs
-        ) -> None
+        )
     >>> class RandomFilmStack(
                 waves: Iterable[float],
                 high: Iterable[complex],
                 low: Iterable[complex],
                 **kwargs
-        ) -> None:
+        )
     """
 
     def __init__(self, films: Iterable[ThinFilm], **kwargs) -> None:
@@ -524,7 +524,7 @@ class RandomFilmStack(FilmStack):
     >>> class FilmStack(
                 films: Iterable[ThinFilm],
                 **kwargs
-        ) -> None
+        )
     """
 
     def __init__(
