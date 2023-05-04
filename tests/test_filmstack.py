@@ -169,13 +169,6 @@ class TestFilmStack(unittest.TestCase):
         # validate last layer is appended correctly
         self.assertEqual(stk1.stack[-1], lyr1)
 
-        # test film stack 2
-        stk2 = FilmStack(self._stack)
-
-        with self.assertRaises(ValueError):
-            # this layer should give a ValueError
-            lyr2 = ThinFilm(self._waves, self._high_mat, thick=500.0, ntype=1)
-            stk2.append_layer(lyr2)
 
     def test_remove_layer(self):
         """
@@ -291,6 +284,24 @@ class TestFilmStack(unittest.TestCase):
         lyr1 = ThinFilm(self._waves, self._low_mat, thick=500.0, ntype=0)
         stk1.insert_layer(lyr1, 4)
 
+        # assert number of layers is correct (should be n + 1)
+        self.assertEqual(stk1.num_layers, len(self._stack) + 1)
+
+        # assert new_lyr[4] == inserted layer
+        self.assertEqual(stk1.stack[4].thick, lyr1.thick)
+
+
+    def test_insert_split_layer(self):
+        """
+        test insert_split_layer()
+        """
+
+        stk1 = FilmStack(self._stack)
+
+        # this layer should work as expected
+        lyr1 = ThinFilm(self._waves, self._low_mat, thick=500.0, ntype=0)
+        stk1.insert_split_layer(lyr1, 4)
+
         # assert number of layers is correct (should be n + 2)
         self.assertEqual(stk1.num_layers, len(self._stack) + 2)
 
@@ -301,9 +312,6 @@ class TestFilmStack(unittest.TestCase):
         self.assertEqual(stk1.stack[4].thick, self._stack[4].thick * 0.5)
         self.assertEqual(stk1.stack[6].thick, self._stack[4].thick * 0.5)
 
-        # assert raises value error if same ntype
-        with self.assertRaises(ValueError):
-            stk1.insert_layer(lyr1, 1)
 
     @classmethod
     def tearDownClass(cls):

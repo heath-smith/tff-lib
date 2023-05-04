@@ -50,13 +50,12 @@ class ThinFilm(OpticalMedium):
         ----------
         thick: float, medium thickness in nanometers. -1 if unspecified, or must
             be greater than zero. (default -1)
-        ntype: int, one of -1, 0, or 1. Use 1 for a high index material,
-            0 for a low index material, or -1 if not specified. (default -1)
+        ntype: int, refractive index material type (default -1)
 
         Raises
         ----------
         ValueError
-            if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
+            if thick not -1 or > 0, len(waves) != len(nref),
              waves or nref not 1-D.
 
         See Also
@@ -134,8 +133,8 @@ class ThinFilm(OpticalMedium):
 
 class FilmStack():
     """
-    Abstract object representing a stack of optical
-    thin films.
+    The FilmStack class is an abstraction of a physical thin-film stack
+    containing ThinFilm layers with finite thicknesses.
 
     Properties
     ----------
@@ -155,7 +154,8 @@ class FilmStack():
 
     Methods
     ----------
-    >>> insert_layer(self, lyr: ThinFilm, index: SupportsIndex, ratio: float = 0.5) -> None
+    >>> insert_layer(self, lyr: ThinFilm, index: SupportsIndex) -> None
+    >>> insert_split_layer(self, lyr: ThinFilm, index: SupportsIndex, ratio: float = 0.5) -> None
     >>> append_layer(self, lyr: ThinFilm) -> None
     >>> remove_layer(self, index: SupportsIndex = -1) -> ThinFilm
     >>> get_layer(self, index: SupportsIndex) -> ThinFilm
@@ -320,15 +320,44 @@ class FilmStack():
         # ref ---> https://python-guide.readthedocs.io/en/latest/writing/gotchas/
         self._stack = copy.deepcopy(films)
 
-    def insert_layer(self, lyr: ThinFilm, index: SupportsIndex, ratio: float = 0.5) -> None:
+    def insert_layer(self, lyr: ThinFilm, index: SupportsIndex) -> None:
+        """
+        Inserts a new thin-film before index.
+
+        args
+        ----------
+        lyr: ThinFilm, thin-film object to be inserted
+        index: SupportsIndex, position to insert thin-film
+        """
+
+        # copy stack
+        new_stack = list(self._stack)
+
+        # insert into stack
+        new_stack.insert(index, lyr)
+
+        # update property
+        self.stack = new_stack
+
+    def insert_split_layer(
+            self,
+            lyr: ThinFilm,
+            index: SupportsIndex,
+            ratio: float = 0.5
+    ) -> None:
         """
         Inserts a new thin-film layer into the stack by partitioning the layer
         specified at index according to the ratio.
-        """
 
-        # make sure ntype is not the same
-        if lyr.ntype == self._stack[index].ntype:
-            raise ValueError("cannot insert layer with same ntype as index")
+        args
+        ----------
+        lyr: ThinFilm, the thin-film object to be inserted
+        index: SupportsIndex, the position in the stack to insert lyr
+
+        kwargs
+        ----------
+        ratio: float, the ratio to partition the layer at index
+        """
 
         # create a new stack with lyrs[0 : i-1]
         new_stack = self._stack[:index]
@@ -337,36 +366,40 @@ class FilmStack():
         lyr_a = self.get_layer(index)
         lyr_b = lyr_a.split_film(ratio)
 
-        ## inster the first partition
+        # insert the first partition, new layer, second partition
         new_stack.append(lyr_a)
-
-        # insert new layer
         new_stack.append(lyr)
-
-        # insert second partition
         new_stack.append(lyr_b)
 
         # insert remaining layers
         new_stack += self._stack[index + 1:]
 
-        ## update the stack with setter
+        # update the stack with setter
         self.stack = new_stack
 
     def append_layer(self, lyr: ThinFilm) -> None:
         """
         Appends a new thin film layer to end of stack.
-        Updates num_layers and total_thick attributes.
-        """
-        if self._stack[-1].ntype == lyr.ntype:
-            raise ValueError("film stacks must have alternating materials")
 
+        args
+        ----------
+        lyr: ThinFilm, the thin-film object to be appended to stack
+        """
         self._stack.append(lyr)
 
     def remove_layer(self, index: SupportsIndex = -1) -> ThinFilm:
         """
         Remove and return thin film layer at index (default last).
-        Updates num_layers and total_thick attributes. If popped layer
-        is not first or last layer, combines layers index + 1 and index - 1.
+        If popped layer is not first or last layer, combines layers
+        index + 1 and index - 1.
+
+        args
+        ----------
+        index: SupportsIndex, index of layer to remove (default -1)
+
+        Returns
+        ----------
+        ThinFilm, the thin-film object that was removed from the stack
         """
 
         # if index not first/last value in layers
@@ -387,6 +420,14 @@ class FilmStack():
     def get_layer(self, index: SupportsIndex) -> ThinFilm:
         """
         Return layer at index. Does not alter layer stack.
+
+        args
+        ----------
+        index: SupportsIndex, index of layer to be returned
+
+        Returns
+        ----------
+        ThinFilm, the thin-film layer at index
         """
         return self._stack[index]
 

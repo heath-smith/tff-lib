@@ -201,12 +201,6 @@ OpticalMedium_init(OpticalMedium *self, PyObject *args, PyObject *kwds) {
 
   if (ntype) {
 
-    if (
-      PyLong_AsLong(ntype) != 0 && PyLong_AsLong(ntype) != -1 && PyLong_AsLong(ntype) != 1) {
-        PyErr_SetString(PyExc_ValueError, "ntype must be 1, 0, or -1");
-        return -1;
-    }
-
     tmp = self->_ntype;
     Py_INCREF(ntype);
     self->_ntype = ntype;
@@ -365,12 +359,6 @@ static int
 OpticalMedium_setntype(OpticalMedium *self, PyObject *value, void *closure) {
   PyObject *tmp;
 
-    if (
-      PyFloat_AsDouble(value) != 0 && PyFloat_AsDouble(value) != -1 && PyFloat_AsDouble(value) != 1) {
-        PyErr_SetString(PyExc_ValueError, "ntype must be 1, 0, or -1");
-        return -1;
-    }
-
   tmp = self->_ntype;
   Py_INCREF(value);
   self->_ntype = value;
@@ -391,7 +379,7 @@ static PyGetSetDef OpticalMedium_getsetters[] = {
     "_ntype",
     (getter) OpticalMedium_getntype,
     (setter) OpticalMedium_setntype,
-    "index type, 1, 0, or -1",
+    "index type, -1 if unspecified",
     NULL
   },
   {NULL}  /* Sentinel */

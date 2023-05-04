@@ -78,12 +78,6 @@ class TestThinFilm(unittest.TestCase):
                      thick=self._thick,
                      ntype=self._ntype)
 
-        with self.assertRaises(ValueError):
-            # use invalid material
-            ThinFilm(self._waves,
-                     self._nref,
-                     thick=self._thick,
-                     ntype=-5)
 
     def test_thin_film_add_subtract(self):
         """

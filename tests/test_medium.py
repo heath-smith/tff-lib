@@ -92,9 +92,6 @@ class TestMedium(unittest.TestCase):
         with self.assertRaises(ValueError):
             OpticalMedium(self._waves, self._nref, thick=-5)
 
-        # test with invalid ntype value
-        with self.assertRaises(ValueError):
-            OpticalMedium(self._waves, self._nref, ntype=-5)
 
     def test_thickness_getset(self):
         """
@@ -119,12 +116,9 @@ class TestMedium(unittest.TestCase):
         opt = OpticalMedium(self._waves, self._nref)
 
         # change the thickness
-        opt.ntype = 1
-        self.assertEqual(1, opt.ntype)
+        opt.ntype = 2
+        self.assertEqual(2, opt.ntype)
 
-        # set invalid thickness
-        with self.assertRaises(ValueError):
-            opt.ntype = -5  # can only be > 0 or == -1
 
     def test_absorption_coeffs(self):
         """
