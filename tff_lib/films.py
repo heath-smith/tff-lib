@@ -5,7 +5,6 @@ to describe thin films and film stacks.
 
 # import dependencies
 import copy
-import random
 from typing import SupportsIndex, Iterable, Dict
 import numpy as np
 from numpy.typing import NDArray
@@ -512,76 +511,3 @@ class FilmStack():
                                 + (_matrices['P22'] * elements['p22'][i, :]))
 
         return matrices
-
-
-class RandomFilmStack(FilmStack):
-    """
-    A randomized film stack. Inherits public attributes, properties,
-     and methods from FilmStack().
-
-    See Also
-    ----------
-    >>> class FilmStack(
-                films: Iterable[ThinFilm],
-                **kwargs
-        )
-    """
-
-    def __init__(
-            self,
-            waves: Iterable[float],
-            high: Iterable[complex],
-            low: Iterable[complex],
-            **kwargs
-    ) -> None:
-        """
-        Initializes a randomized ThinFilmStack object.
-
-        args
-        ----------
-        waves: Iterable[float], 1-D wavelength array for materials
-        high: Iterable[complex], 1-D refractive indices of high index material
-        low: Iterable[complex], 1-D refractive indices of low index material
-
-        kwargs
-        ----------
-        max_total_thick: float, max total thickness in nanometers (default 20_000)
-        max_layers: int, maximum number of ThinFilm layers (default 20)
-        min_layers: int, minimum number of ThinFilm layers (default 5)
-        first_lyr_min_thick: float, min thickness of first layer in nanometers (default 500)
-        min_thick: float, min thickness of remaining layers in nanometers (default 10)
-        """
-
-        max_layers = kwargs.get('max_layers', 20)
-        min_layers = kwargs.get('min_layers', 5)
-        total_thick = kwargs.get('max_total_thick', 20_000)
-
-        if not len(high) == len(waves):
-            raise ValueError("high length must match wavelengths")
-        if not len(low) == len(waves):
-            raise ValueError("low length must match wavelengths")
-        if not len(low) == len(high):
-            raise ValueError("high length must match low length")
-
-        # generate a random number of layers between min_layers - max_layers
-        rand_layers = min_layers + round((max_layers - min_layers) * random.uniform(0.0, 1.0))
-        scale_factor = 2 * total_thick / rand_layers
-
-        # random film stack
-        rand_stack = []
-
-        # generate thin film layers
-        for i in range(rand_layers):
-            rand_stack.append(
-                ThinFilm(
-                    waves,
-                    high if i % 2 == 0 else low,
-                    thick=scale_factor * random.uniform(0.0, 1.0),
-                    ntype=1 if i % 2 == 0 else 0
-
-                )
-            )
-
-
-        # pass kwargs to parent __init__()
-        super().__init__(rand_stack, **kwargs)  # pylint: disable=useless-parent-delegation
