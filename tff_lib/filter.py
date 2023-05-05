@@ -133,8 +133,8 @@ class ThinFilmFilter():
         # reflection originating from substrate
         sub_ref = self.fresnel_coeffs(theta, 'substrate')
 
-        # calculate the absorption coefficients for multiple reflections
-        alpha = self.sub.absorption_coeffs(n_reflect=4)
+        # calculate the absorption coefficients
+        alpha = self.sub.absorption_coeffs()
 
         ## might be better to have a function from here down, which
         ## takes in the results from the previous method calls
