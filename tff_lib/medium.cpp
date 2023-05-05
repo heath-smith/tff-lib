@@ -387,10 +387,6 @@ static PyGetSetDef OpticalMedium_getsetters[] = {
 
 static PyObject *
 OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
-  int n_reflect;
-
-  if (!PyArg_ParseTuple(args, "i", &n_reflect))
-      return Py_None;
 
   PyArrayIterObject *iter1, *iter2;
   iter1 = (PyArrayIterObject *)PyArray_IterNew(self->waves);
@@ -407,7 +403,7 @@ OpticalMedium_absorption_coeffs(OpticalMedium *self, PyObject *args) {
     double wv = *(double *)iter1->dataptr;
     std::complex<double> n_ref = *(std::complex<double> *)iter2->dataptr;
 
-    coeffs[iter1->index] = (std::abs(n_reflect) * Py_MATH_PI * std::imag(n_ref)) / wv;
+    coeffs[iter1->index] = (4 * Py_MATH_PI * std::imag(n_ref)) / wv;
 
     /* increment iterator */
     PyArray_ITER_NEXT(iter1);

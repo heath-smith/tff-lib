@@ -62,7 +62,7 @@ class OpticalMedium(medium.OpticalMedium):
             if ntype not in (1, 0, -1), thick not -1 or > 0, len(waves) != len(nref),
              waves or nref not 1-D.
         """
-        
+
         super().__init__(waves, nref, **kwargs)
 
     @property
@@ -89,19 +89,15 @@ class OpticalMedium(medium.OpticalMedium):
     def ntype(self, new_ntype:float):
         self._ntype = float(new_ntype)
 
-    def absorption_coeffs(self, n_reflect: int = 4) -> NDArray:
+    def absorption_coeffs(self) -> NDArray:
         """
         Calculate the absorption coefficients for n_ref reflections.
-
-        Parameters
-        ----------
-        n_reflect: int, the number of reflections (default 4)
 
         Returns
         ----------
         NDArray, absorption coefficients as a function of wavelength
         """
-        return super().absorption_coeffs(n_reflect)
+        return super().absorption_coeffs()
 
     def nref_eff(self, theta: float|Iterable[float]) -> NDArray:
         """
