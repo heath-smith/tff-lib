@@ -7,7 +7,7 @@ library offer a software API which mimics real-world behavior of optical
 materials used in thin-film production.
 
 # Installation
-1. In a directory of your choice, create and a new python environment
+1. In a directory of your choice, create a new python environment
 ```console
 $ python -m venv env
 ```
@@ -34,7 +34,7 @@ from tff_lib import ThinFilm, FilmStack
 
 thick = 500                         # thickness in nanometers
 mat = 1                             # high index material type
-wvls = [400, 500, 600, 700, 800]    # wavelenghts in nanometers
+wvls = [400, 500, 600, 700, 800]    # wavelengths in nanometers
 idx = [2, 2, 2, 2, 2]               # refractive indices at each wvl
 
 # create a high-index ThinFilm object
