@@ -237,6 +237,7 @@ class FilmStack():
         self.max_layers = int(max_layers)
         self.first_lyr_min_thick = float(first_lyr_min_thick)
         self.min_thick = float(min_thick)
+        self.max_thick = float(max_thick)
         self.min_layers = int(min_layers)
 
     def __str__(self):
