@@ -192,6 +192,7 @@ class FilmStack():
         min_layers: int, minimum number of ThinFilm layers (default 5)
         first_lyr_min_thick: float, min thickness of first layer in nanometers (default 500)
         min_thick: float, min thickness of remaining layers in nanometers (default 10)
+        max_thick: float, max thickness of layers in nanometers (default 2500)
 
         See Also
         ----------
@@ -206,6 +207,7 @@ class FilmStack():
         max_layers = kwargs.get('max_layers', 25)
         first_lyr_min_thick = kwargs.get('first_lyr_min_thick', 500)
         min_thick = kwargs.get('min_thick', 10)
+        max_thick = kwargs.get('max_thick', 2500)
         min_layers = kwargs.get('min_layers', 5)
 
         # validate inputs
@@ -215,6 +217,10 @@ class FilmStack():
             raise ValueError("first_lyr_min_thick must be greater than 0.")
         if min_thick <= 0:
             raise ValueError("min_thick must be greater than 0.")
+        if max_thick <= 0:
+            raise ValueError("max_thick must be greater than 0.")
+        if max_thick <= min_thick:
+            raise ValueError("max_thick must be greater than min_thick.")
         if max_layers <= 0:
             raise ValueError("max_layers must be greater than 0.")
         if min_layers <= 0:
