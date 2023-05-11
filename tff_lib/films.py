@@ -151,6 +151,7 @@ class FilmStack():
         min_layers: int, minimum number of ThinFilm layers (default 5)
         first_lyr_min_thick: float, first lyr min thickness (nanometers) (default 500)
         min_thick: float, all other layers min thickness (nanometers) (default 10)
+        max_thick: float, max thickness of layers in nanometers (default 2500)
 
     Methods
     ----------
