@@ -17,9 +17,9 @@ class ThinFilmFilter():
 
     Attributes
     ----------
-        substrate: Substrate, the substrate of the thin film filter
-        film_stack: FilmStack, optical thin film stack
-        incident: OpticalMedium,
+        sub: Substrate, the substrate of the filter
+        stack: FilmStack, optical thin film stack
+        inc: OpticalMedium, the incident optical medium
     """
 
     def __init__(self, sub: OpticalMedium, stack: FilmStack, inc: OpticalMedium) -> None:
@@ -28,25 +28,24 @@ class ThinFilmFilter():
 
         Parameters
         ----------
-        substrate: Substrate, the substrate of the filter
-        film_stack: FilmStack, optical thin film stack
-        incident: OpticalMedium, the optical medium
+        sub: Substrate, the substrate of the filter
+        stack: FilmStack, optical thin film stack
+        inc: OpticalMedium, the incident optical medium
         """
 
         self.sub = sub
         self.stack = stack
         self.inc = inc
 
-    def fresnel_coeffs(self, theta: float, reflection: str) -> Dict[str, NDArray]:
+    def fresnel_coeffs(self, theta: float, refl: str) -> Dict[str, NDArray]:
         """
         Calculates the fresnel amplitudes & intensities of filter given the
         substrate admittance and incident medium admittance.
 
         Parameters
         ------------
-        admit_sub: Tuple, substrate admittance (s-polarized, p-polarized)
-        char_matrix: Tuple, incident medium admittance (s-polarized, p-polarized)
-        reflection: str, one of 'medium' or 'substrate'
+        theta: float, angle of incidence of radiation in radians
+        refl: str, one of 'medium' or 'substrate'
 
         Returns
         -------------
@@ -61,11 +60,11 @@ class ThinFilmFilter():
             'rp' : p-polarized Fresnel Reflection Amplitude}
         """
 
-        if reflection == 'medium':
+        if refl == 'medium':
             admit_sub = self.sub.admittance(self.inc, theta)
             admit_inc = self.inc.admittance(self.inc, theta)
             char_matrix = self.stack.char_matrix(self.inc, theta)
-        elif reflection == 'substrate':
+        elif refl == 'substrate':
             theta_inverse = np.arcsin(
                 self.inc.nref / self.sub.nref * np.sin(theta))
             admit_sub = self.sub.admittance_eff(self.inc, theta_inverse)
@@ -106,8 +105,6 @@ class ThinFilmFilter():
 
         Parameters
         ------------
-        substrate: Substrate, the substrate for the thin film stack
-        inc_medium: ArrayLike, refractive indices of incident medium
         theta: float, angle of incidence of radiation in radians
 
         Returns
