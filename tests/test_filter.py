@@ -94,9 +94,9 @@ class TestThinFilmFilter(unittest.TestCase):
                              self._stack,
                              self._inc)
 
-        self.assertEqual(self._sub, tff.sub)
-        self.assertEqual(self._stack, tff.stack)
-        self.assertEqual(self._inc, tff.inc)
+        self.assertNotEqual(self._sub, tff.sub)
+        self.assertNotEqual(self._stack, tff.stack)
+        self.assertNotEqual(self._inc, tff.inc)
 
     def test_fresnel_coeffs_medium(self):
         """

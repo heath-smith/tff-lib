@@ -2,6 +2,7 @@
 This module contains the ThinFilmFilter class.
 """
 
+from copy import deepcopy
 from typing import Dict
 from numpy.typing import NDArray
 import numpy as np
@@ -33,9 +34,9 @@ class ThinFilmFilter():
         inc: OpticalMedium, the incident optical medium
         """
 
-        self.sub = sub
-        self.stack = stack
-        self.inc = inc
+        self.sub = deepcopy(sub)
+        self.stack = deepcopy(stack)
+        self.inc = deepcopy(inc)
 
     def fresnel_coeffs(self, theta: float, refl: str) -> Dict[str, NDArray]:
         """
