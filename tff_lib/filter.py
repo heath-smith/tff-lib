@@ -46,7 +46,7 @@ class ThinFilmFilter():
         Parameters
         ------------
         theta: float, angle of incidence of radiation in radians
-        refl: str, one of 'medium' or 'substrate'
+        refl: str, one of 'med' or 'sub'
 
         Returns
         -------------
@@ -61,18 +61,18 @@ class ThinFilmFilter():
             'rp' : p-polarized Fresnel Reflection Amplitude}
         """
 
-        if refl == 'medium':
+        if refl == 'med':
             admit_sub = self.sub.admittance(self.inc, theta)
             admit_inc = self.inc.admittance(self.inc, theta)
             char_matrix = self.stack.char_matrix(self.inc, theta)
-        elif refl == 'substrate':
+        elif refl == 'sub':
             theta_inverse = np.arcsin(
                 self.inc.nref / self.sub.nref * np.sin(theta))
             admit_sub = self.sub.admittance_eff(self.inc, theta_inverse)
             admit_inc = self.inc.admittance(self.inc, theta_inverse)
             char_matrix = self.stack.char_matrix(self.inc, theta_inverse)
         else:
-            raise ValueError("reflection must be one of 'medium' or 'substrate'")
+            raise ValueError("reflection must be one of 'med' or 'sub'")
 
 
         # calculate admittance of the incident interface

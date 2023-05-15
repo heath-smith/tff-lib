@@ -113,7 +113,7 @@ class TestThinFilmFilter(unittest.TestCase):
             start = time.perf_counter()
 
             # test with 'medium' reflection
-            fresnel = tff.fresnel_coeffs(self._theta, 'medium')
+            fresnel = tff.fresnel_coeffs(self._theta, 'med')
 
             # end time
             end = time.perf_counter()
@@ -151,7 +151,7 @@ class TestThinFilmFilter(unittest.TestCase):
             start = time.perf_counter()
 
             # test with 'medium' reflection
-            fresnel = tff.fresnel_coeffs(self._theta, 'substrate')
+            fresnel = tff.fresnel_coeffs(self._theta, 'sub')
 
             # end time
             end = time.perf_counter()
