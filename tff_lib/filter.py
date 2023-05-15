@@ -126,10 +126,10 @@ class ThinFilmFilter():
         sub_fresnel = self.sub.fresnel_coeffs(self.inc, theta)
 
         # reflection originating from incident medium
-        inc_med_ref = self.fresnel_coeffs(theta, 'medium')
+        inc_med_ref = self.fresnel_coeffs(theta, 'med')
 
         # reflection originating from substrate
-        sub_ref = self.fresnel_coeffs(theta, 'substrate')
+        sub_ref = self.fresnel_coeffs(theta, 'sub')
 
         # calculate the absorption coefficients
         alpha = self.sub.absorption_coeffs()
