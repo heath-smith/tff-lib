@@ -5,7 +5,7 @@ to describe thin films and film stacks.
 
 # import dependencies
 import copy
-from typing import SupportsIndex, Iterable, Dict
+from typing import SupportsIndex, Iterable, Dict, List
 import numpy as np
 from numpy.typing import NDArray
 from .medium import OpticalMedium
@@ -273,9 +273,9 @@ class FilmStack():
         raise WritePropertyError("num_layers is a read-only property")
 
     @property
-    def layers(self) -> Iterable[float]:
+    def layers(self) -> List[float]:
         """
-        Property - Iterable[float], 1-D layer thickness values.
+        Property - List[float], 1-D layer thickness values.
         """
         return [lyr.thick for lyr in self._stack]
 
