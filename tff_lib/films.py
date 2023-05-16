@@ -306,21 +306,20 @@ class FilmStack():
     @property
     def stack(self) -> Iterable[ThinFilm]:
         """
-        Property - Iterable[ThinFilm], the stack of thin films.
+        Property - Iterable[ThinFilm], the stack of thin films. Can
+         also be empty List in order to reset the stack.
         """
         return self._stack
 
     @stack.setter
     def stack(self, films:Iterable[ThinFilm]):
 
-        # verify there is at least 1 film
-        if len(films) < 1:
-            raise ValueError("film stack must contain at least 1 layer")
-
-        # validate the wavelengths of each film
-        for film in films:
-            if not all(film.waves == films[0].waves):
-                raise ValueError("All films must have same wavelength values.")
+        # if films are present, validate shapes
+        if len(films) > 0:
+            # validate the wavelengths of each film
+            for film in films:
+                if not all(film.waves == films[0].waves):
+                    raise ValueError("All films must have same wavelength values.")
 
         # because films is mutable, python will re-use the 'films' object.
         # to avoid erroneous behavior, create a new object (ie: deep copy)
